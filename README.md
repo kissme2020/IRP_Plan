@@ -7,6 +7,8 @@ A professional web application for tracking your Korean IRP (Individual Retireme
 - **Market Monitoring**: Real-time tracking of S&P 500, NASDAQ, AI sector, and Korean KOSPI
 - **Rebalancing Alerts**: Automatic detection of portfolio drift with specific buy/sell recommendations
 - **AI Recommendations**: Intelligent suggestions based on market conditions and your progress
+- **Automatic Price Tracking**: Real-time ETF prices via pykrx API (Korea Exchange data)
+- **Holdings Management**: Track by shares (auto-calculate values) or manual entry
 - **Monthly Tracking**: Easy deposit entry and progress monitoring
 - **RSU Management**: Track your Keysight RSU vesting (4 tranches: 2027-2030)
 - **Projections**: Year-by-year balance projections to retirement
@@ -65,12 +67,12 @@ c:/Users/tskdkim/Projects/IPR_Plan/
 
 4. **Install packages**
    ```bash
-   pip install streamlit pandas plotly numpy requests
+   pip install -r requirements.txt
    ```
 
-   You should see:
-   ```
-   Successfully installed streamlit pandas plotly numpy requests
+   Or manually:
+   ```bash
+   pip install streamlit pandas plotly numpy requests pykrx
    ```
 
 5. **Verify installation**
@@ -221,6 +223,30 @@ To restore:
 # Copy backup back to data folder
 copy [backup_location]\irp_tracker_data.json data\
 ```
+
+## ETF Configuration
+
+The app tracks the following Korean ETFs using Samsung Fund ticker codes:
+
+| ETF Name | Ticker Code | Category |
+|----------|-------------|----------|
+| KODEX AI Core Power | 457930 | Growth |
+| KODEX AI Tech TOP10 | 412650 | Growth |
+| KODEX Dividend Stocks | 489250 | Defensive |
+| KODEX Consumer Staples | 453630 | Defensive |
+| KODEX Treasury 20+ Year Bond | 484790 | Bonds |
+| Gold | 132030 | Safe Haven |
+| Japan TOPIX | 101280 | International |
+
+### Price Tracking
+
+Prices are automatically fetched from the Korea Exchange (KRX) using the `pykrx` library. If a ticker fails to fetch, the app uses fallback prices.
+
+### Holdings Mode
+
+Two modes are available:
+- **Shares Mode**: Enter number of shares → prices fetched automatically
+- **Values Mode**: Enter KRW values directly (manual entry)
 
 ## Monthly Workflow
 
