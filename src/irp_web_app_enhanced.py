@@ -627,8 +627,7 @@ def page_rebalancing_alerts():
     
     data = load_data()
     progress = calculate_progress(data)
-    
-    st.subheader("Allocation Drift Detection")
+    portfolio_value = calculate_current_balance(data)
     
     # Simulated current allocation (in real app, would calculate from actual holdings)
     simulated_allocation = {
@@ -642,91 +641,175 @@ def page_rebalancing_alerts():
         'Cash': 18.0,               # Target: 28%
     }
     
+    # ═══════════════════════════════════════════════════════════════════════════
+    # SECTION 1: CURRENT PORTFOLIO STATUS
+    # ═══════════════════════════════════════════════════════════════════════════
+    st.header("📊 Section 1: Current Portfolio Status")
+    
+    st.metric("Total Portfolio Value", f"{portfolio_value:,.0f} KRW ({portfolio_value/1_000_000:.1f}M)")
+    
+    # Create a table showing current allocation
+    current_status_data = []
+    for asset, current_pct in simulated_allocation.items():
+        target_pct = ALLOCATION_TARGET.get(asset, 0) * 100  # Convert to percentage
+        drift = current_pct - target_pct
+        current_value = portfolio_value * (current_pct / 100)
+        
+        # Determine status
+        if abs(drift) > 5:
+            status = "⚠️ NEEDS REBALANCING" if abs(drift) > 10 else "⚡ MONITOR"
+        else:
+            status = "✅ OK"
+        
+        current_status_data.append({
+            'Asset': asset,
+            'Current %': f"{current_pct:.1f}%",
+            'Target %': f"{target_pct:.1f}%",
+            'Drift': f"{drift:+.1f}%",
+            'Current Value (KRW)': f"{current_value:,.0f}",
+            'Status': status
+        })
+    
+    df_status = pd.DataFrame(current_status_data)
+    st.dataframe(df_status, use_container_width=True, hide_index=True)
+    
+    # Visual comparison chart
+    st.subheader("Current vs Target Allocation")
+    
+    chart_data = []
+    for asset in simulated_allocation:
+        chart_data.append({
+            'Asset': asset,
+            'Type': 'Current',
+            'Percentage': simulated_allocation[asset]
+        })
+        chart_data.append({
+            'Asset': asset,
+            'Type': 'Target',
+            'Percentage': ALLOCATION_TARGET.get(asset, 0) * 100
+        })
+    
+    df_chart = pd.DataFrame(chart_data)
+    fig = px.bar(df_chart, x='Asset', y='Percentage', color='Type', barmode='group',
+                 title='Current vs Target Allocation (%)',
+                 color_discrete_map={'Current': '#1f77b4', 'Target': '#2ca02c'})
+    fig.update_layout(xaxis_tickangle=-45)
+    st.plotly_chart(fig, use_container_width=True)
+    
+    st.divider()
+    
+    # ═══════════════════════════════════════════════════════════════════════════
+    # SECTION 2: ALERTS - ASSETS NEEDING REBALANCING
+    # ═══════════════════════════════════════════════════════════════════════════
+    st.header("🚨 Section 2: Rebalancing Alerts")
+    
     recommendations = get_rebalancing_recommendations(data, simulated_allocation)
     
     if recommendations:
-        st.info(f"Found {len(recommendations)} rebalancing recommendations")
+        st.warning(f"⚠️ Found {len(recommendations)} asset(s) with drift > 5% that need rebalancing")
         
         for rec in recommendations:
-            with st.container():
-                col1, col2, col3, col4 = st.columns(4)
+            with st.expander(f"{'📈' if rec['action'] == 'ADD' else '📉'} {rec['asset']} - {rec['priority']} Priority", expanded=True):
+                col1, col2, col3 = st.columns(3)
                 
                 with col1:
-                    action_icon = "📈" if rec['action'] == 'ADD' else "📉"
-                    action_color = "green" if rec['action'] == 'ADD' else "orange"
-                    st.write(f":{action_color}[**{action_icon} {rec['action']}**]")
+                    st.metric("Current Allocation", f"{rec['current']:.1f}%")
                 
                 with col2:
-                    st.write(f"**{rec['asset']}**")
-                    st.caption(f"Drift: {rec['drift']:.1f}%")
+                    st.metric("Target Allocation", f"{rec['target']:.1f}%")
                 
                 with col3:
-                    st.write(f"Current: {rec['current']:.1f}%")
-                    st.write(f"Target: {rec['target']:.1f}%")
+                    drift_delta = rec['current'] - rec['target']
+                    st.metric("Drift", f"{abs(rec['drift']):.1f}%", 
+                             delta=f"{drift_delta:+.1f}%",
+                             delta_color="inverse" if rec['action'] == 'ADD' else "normal")
                 
-                with col4:
-                    priority_color = "red" if rec['priority'] == 'HIGH' else "orange"
-                    st.write(f":{priority_color}[**{rec['priority']} Priority**]")
-                    st.caption(rec['reason'])
-                
-                st.divider()
+                st.write(f"**Action Needed:** {rec['action']} - {rec['reason']}")
     else:
-        st.success("✓ Portfolio is within 5% of target allocation. No rebalancing needed.")
+        st.success("✅ All assets are within 5% of target allocation. No rebalancing needed!")
     
-    # Rebalancing calculator
-    st.subheader("Rebalancing Calculator")
+    st.divider()
     
-    st.write("Calculate how much to buy/sell to rebalance to targets:")
+    # ═══════════════════════════════════════════════════════════════════════════
+    # SECTION 3: RECOMMENDED REBALANCING TRADES
+    # ═══════════════════════════════════════════════════════════════════════════
+    st.header("💰 Section 3: Recommended Rebalancing Trades")
     
-    portfolio_value = st.number_input(
-        "Total Portfolio Value (KRW)",
-        value=calculate_current_balance(data),
-        step=1_000_000,
-        min_value=0
-    )
+    st.write("Based on your current portfolio, here are the specific trades to execute:")
     
-    if st.button("Calculate Rebalancing Actions", use_container_width=True):
-        st.subheader("Recommended Rebalancing Trades")
+    # Calculate trades
+    trades_buy = []
+    trades_sell = []
+    total_buy = 0
+    total_sell = 0
+    
+    for asset, current_pct in simulated_allocation.items():
+        target_pct = ALLOCATION_TARGET.get(asset, 0)
+        current_value = portfolio_value * (current_pct / 100)
+        target_value = portfolio_value * target_pct  # Fixed: removed * 100
+        difference = target_value - current_value
         
-        trades = []
-        total_buy = 0
-        total_sell = 0
+        if abs(difference) > 500_000:  # Only if > 500K difference
+            if difference > 0:
+                trades_buy.append({
+                    'Asset': asset,
+                    'Current Value': f"{current_value:,.0f}",
+                    'Target Value': f"{target_value:,.0f}",
+                    'Amount to BUY': f"{abs(difference):,.0f}"
+                })
+                total_buy += abs(difference)
+            else:
+                trades_sell.append({
+                    'Asset': asset,
+                    'Current Value': f"{current_value:,.0f}",
+                    'Target Value': f"{target_value:,.0f}",
+                    'Amount to SELL': f"{abs(difference):,.0f}"
+                })
+                total_sell += abs(difference)
+    
+    # Show SELL trades first
+    if trades_sell:
+        st.subheader("📉 Step 1: SELL These Assets (Do First)")
+        df_sell = pd.DataFrame(trades_sell)
+        st.dataframe(df_sell, use_container_width=True, hide_index=True)
+        st.metric("Total to Sell", f"{total_sell:,.0f} KRW")
+    else:
+        st.info("No assets need to be sold.")
+    
+    st.write("")
+    
+    # Show BUY trades second
+    if trades_buy:
+        st.subheader("📈 Step 2: BUY These Assets (Do Second)")
+        df_buy = pd.DataFrame(trades_buy)
+        st.dataframe(df_buy, use_container_width=True, hide_index=True)
+        st.metric("Total to Buy", f"{total_buy:,.0f} KRW")
+    else:
+        st.info("No assets need to be bought.")
+    
+    # Summary
+    if trades_sell or trades_buy:
+        st.divider()
+        st.subheader("📋 Summary")
         
-        for asset, current_pct in simulated_allocation.items():
-            target_pct = ALLOCATION_TARGET.get(asset, 0)
-            current_value = portfolio_value * (current_pct / 100)
-            target_value = portfolio_value * (target_pct * 100)
-            difference = target_value - current_value
-            
-            if abs(difference) > 500_000:  # Only if > 500K difference
-                if difference > 0:
-                    trades.append({
-                        'Action': '📈 BUY',
-                        'Asset': asset,
-                        'Amount': f"{abs(difference):,.0f} KRW"
-                    })
-                    total_buy += abs(difference)
-                else:
-                    trades.append({
-                        'Action': '📉 SELL',
-                        'Asset': asset,
-                        'Amount': f"{abs(difference):,.0f} KRW"
-                    })
-                    total_sell += abs(difference)
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total to Sell", f"{total_sell:,.0f} KRW", delta=f"-{total_sell/1_000_000:.1f}M")
+        with col2:
+            st.metric("Total to Buy", f"{total_buy:,.0f} KRW", delta=f"+{total_buy/1_000_000:.1f}M")
+        with col3:
+            net = total_buy - total_sell
+            st.metric("Net Cash Needed", f"{net:,.0f} KRW", 
+                     delta=f"{net/1_000_000:+.1f}M" if net != 0 else "0")
         
-        if trades:
-            df_trades = pd.DataFrame(trades)
-            st.dataframe(df_trades, use_container_width=True, hide_index=True)
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Total to Buy", f"{total_buy:,.0f} KRW")
-            with col2:
-                st.metric("Total to Sell", f"{total_sell:,.0f} KRW")
-            
-            st.info("Execute trades in this order: SELL first (fund the buys), then BUY")
-        else:
-            st.success("No rebalancing trades needed for amounts > 500K KRW")
+        st.info("""
+        **Execution Order:**
+        1. ✅ SELL overweight assets first (generates cash)
+        2. ✅ Then BUY underweight assets
+        3. ✅ Review after execution to confirm alignment
+        """)
+    else:
+        st.success("✅ Portfolio is well-balanced! No trades needed at this time.")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PAGE 3: PLAN REVISION (New)
