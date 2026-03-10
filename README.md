@@ -29,8 +29,13 @@ c:/Users/tskdkim/Projects/IPR_Plan/
 ├── README.md                           # This file
 ├── .gitignore                          # Git ignore file
 ├── requirements.txt                    # Python dependencies
-├── irp_web_app_enhanced.py             # Main Streamlit app
-├── irp_tracker_data.json               # Your retirement data (auto-created)
+├── src/                                # Source code
+│   ├── __init__.py                     # Package initializer
+│   ├── app.py                          # Main Streamlit app
+│   ├── data_handler.py                 # Data loading/saving
+│   └── utils.py                        # Helper functions
+├── data/                               # Data storage
+│   └── irp_tracker_data.json           # Your retirement data (auto-created)
 └── .venv/                              # Virtual environment
 ```
 
@@ -79,7 +84,7 @@ c:/Users/tskdkim/Projects/IPR_Plan/
 
 Start the app with:
 ```bash
-streamlit run irp_web_app_enhanced.py
+streamlit run src/app.py
 ```
 
 The app will open in your browser at:
@@ -194,7 +199,7 @@ This is what your portfolio should look like:
 
 Your retirement data is automatically saved in:
 ```
-c:/Users/tskdkim/Projects/IRP_Web_App/irp_tracker_data.json
+c:/Users/tskdkim/Projects/IPR_Plan/data/irp_tracker_data.json
 ```
 
 This file contains:
@@ -208,13 +213,13 @@ This file contains:
 To backup:
 ```bash
 # Copy to another location
-copy irp_tracker_data.json [backup_location]
+copy data\irp_tracker_data.json [backup_location]
 ```
 
 To restore:
 ```bash
-# Copy backup back to project folder
-copy [backup_location]\irp_tracker_data.json .
+# Copy backup back to data folder
+copy [backup_location]\irp_tracker_data.json data\
 ```
 
 ## Monthly Workflow
@@ -223,7 +228,7 @@ copy [backup_location]\irp_tracker_data.json .
 
 1. **Run the app**
    ```bash
-   streamlit run irp_web_app_enhanced.py
+   streamlit run src/app.py
    ```
 
 2. **Click "Track Deposits"**
@@ -298,7 +303,7 @@ pip install streamlit pandas plotly numpy requests
 **Fix**:
 ```bash
 # Use a different port
-streamlit run irp_web_app_enhanced.py --server.port 8502
+streamlit run src/app.py --server.port 8502
 
 # Then visit: http://localhost:8502
 ```
@@ -332,7 +337,7 @@ pip install -r requirements.txt
 ### Data Not Saving
 
 1. Don't close app abruptly (use Ctrl+C)
-2. Check that irp_tracker_data.json exists in folder
+2. Check that data/irp_tracker_data.json exists
 3. Verify file permissions allow writing
 4. Try running app again
 
@@ -390,7 +395,7 @@ For help or questions:
 2. ✓ Create .gitignore file
 3. ✓ Create virtual environment
 4. ✓ Install packages
-5. → Run the app: `streamlit run irp_web_app_enhanced.py`
+5. → Run the app: `streamlit run src/app.py`
 6. → Add your first monthly deposit
 7. → Start tracking your retirement journey!
 
