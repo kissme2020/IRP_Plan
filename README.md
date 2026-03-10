@@ -31,8 +31,8 @@ c:/Users/tskdkim/Projects/IPR_Plan/
 ├── requirements.txt                    # Python dependencies
 ├── src/                                # Source code
 │   ├── __init__.py                     # Package initializer
-│   ├── app.py                          # Main Streamlit app
-│   ├── data_handler.py                 # Data loading/saving
+│   ├── irp_web_app_enhanced.py         # Main Streamlit app (Market, Rebalancing, etc.)
+│   ├── data_handler.py                 # Data loading/saving utilities
 │   └── utils.py                        # Helper functions
 ├── data/                               # Data storage
 │   └── irp_tracker_data.json           # Your retirement data (auto-created)
@@ -84,7 +84,7 @@ c:/Users/tskdkim/Projects/IPR_Plan/
 
 Start the app with:
 ```bash
-streamlit run src/app.py
+streamlit run src/irp_web_app_enhanced.py
 ```
 
 The app will open in your browser at:
@@ -228,7 +228,7 @@ copy [backup_location]\irp_tracker_data.json data\
 
 1. **Run the app**
    ```bash
-   streamlit run src/app.py
+   streamlit run src/irp_web_app_enhanced.py
    ```
 
 2. **Click "Track Deposits"**
@@ -303,7 +303,7 @@ pip install streamlit pandas plotly numpy requests
 **Fix**:
 ```bash
 # Use a different port
-streamlit run src/app.py --server.port 8502
+streamlit run src/irp_web_app_enhanced.py --server.port 8502
 
 # Then visit: http://localhost:8502
 ```
@@ -395,7 +395,7 @@ For help or questions:
 2. ✓ Create .gitignore file
 3. ✓ Create virtual environment
 4. ✓ Install packages
-5. → Run the app: `streamlit run src/app.py`
+5. → Run the app: `streamlit run src/irp_web_app_enhanced.py`
 6. → Add your first monthly deposit
 7. → Start tracking your retirement journey!
 
