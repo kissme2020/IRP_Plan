@@ -226,7 +226,7 @@ copy [backup_location]\irp_tracker_data.json data\
 
 ## ETF Configuration
 
-The app tracks the following Korean ETFs using Samsung Fund ticker codes:
+ETF configuration is stored in `data/etf_config.json` for easy maintenance. The app tracks the following Korean ETFs:
 
 | ETF Name | Ticker Code | Category |
 |----------|-------------|----------|
@@ -237,6 +237,18 @@ The app tracks the following Korean ETFs using Samsung Fund ticker codes:
 | KODEX Treasury 20+ Year Bond | 484790 | Bonds |
 | Gold | 132030 | Safe Haven |
 | Japan TOPIX | 101280 | International |
+
+To add or modify ETFs, edit `data/etf_config.json`:
+```json
+{
+    "ETF Name": {
+        "code": "123456",
+        "name": "Full ETF Name",
+        "type": "Equity|Bond|Commodity|Cash",
+        "description": "Description"
+    }
+}
+```
 
 ### Price Tracking
 
