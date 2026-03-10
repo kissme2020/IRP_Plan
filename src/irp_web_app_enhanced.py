@@ -59,6 +59,153 @@ ALLOCATION_TARGET = {
     'Cash': 0.28,
 }
 
+# ETF Ticker Configuration (Samsung Fund codes for Korean ETFs)
+ETF_CONFIG = {
+    'AI Core Power': {
+        'code': '457930',
+        'name': 'KODEX AI Core Power',
+        'type': 'Equity',
+        'description': 'S&P 500 AI-focused companies'
+    },
+    'AI Tech TOP10': {
+        'code': '412650',
+        'name': 'KODEX AI Tech TOP10 Target Covered Call',
+        'type': 'Equity',
+        'description': 'Top 10 US tech AI companies with covered call'
+    },
+    'Dividend Stocks': {
+        'code': '489250',
+        'name': 'KODEX US Dividend (Dow Jones)',
+        'type': 'Equity',
+        'description': 'US dividend aristocrats'
+    },
+    'Consumer Staples': {
+        'code': '453630',
+        'name': 'KODEX S&P 500 Consumer Staples',
+        'type': 'Equity',
+        'description': 'Defensive US consumer stocks'
+    },
+    'Treasury Bonds': {
+        'code': '484790',
+        'name': 'KODEX Treasury 20+ Year Bond Active H',
+        'type': 'Bond',
+        'description': 'Long-term US Treasury bonds'
+    },
+    'Gold': {
+        'code': '132030',
+        'name': 'KODEX Gold Futures H',
+        'type': 'Commodity',
+        'description': 'Gold commodity ETF'
+    },
+    'Japan TOPIX': {
+        'code': '101280',
+        'name': 'KODEX Japan TOPIX100',
+        'type': 'Equity',
+        'description': 'Top 100 Japanese companies'
+    },
+    'Cash': {
+        'code': None,  # Cash doesn't have a ticker
+        'name': 'Cash',
+        'type': 'Cash',
+        'description': 'Cash holdings'
+    },
+}
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# KOREAN ETF PRICE FETCHING (using pykrx)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@st.cache_data(ttl=1800)  # Cache for 30 minutes
+def fetch_etf_prices():
+    """Fetch current prices for all ETFs from KRX using pykrx"""
+    prices = {}
+    errors = []
+    
+    try:
+        from pykrx import stock
+        from datetime import datetime, timedelta
+        
+        # Get today's date (or last trading day)
+        today = datetime.now()
+        date_str = today.strftime("%Y%m%d")
+        
+        # Try up to 5 days back to find a trading day
+        for days_back in range(5):
+            check_date = (today - timedelta(days=days_back)).strftime("%Y%m%d")
+            
+            for asset_name, config in ETF_CONFIG.items():
+                if config['code'] is None:  # Skip Cash
+                    continue
+                    
+                if asset_name in prices:  # Already fetched
+                    continue
+                
+                try:
+                    # Get closing price
+                    df = stock.get_market_ohlcv(check_date, check_date, config['code'])
+                    if not df.empty:
+                        close_price = int(df.iloc[-1]['종가'])
+                        prices[asset_name] = {
+                            'price': close_price,
+                            'date': check_date,
+                            'status': 'success'
+                        }
+                except Exception as e:
+                    errors.append(f"{asset_name}: {str(e)}")
+            
+            # Break if we got most prices
+            if len(prices) >= len([c for c in ETF_CONFIG.values() if c['code']]) - 1:
+                break
+        
+        # Set Cash price to 1 (1 KRW = 1 KRW)
+        prices['Cash'] = {'price': 1, 'date': date_str, 'status': 'success'}
+        
+    except ImportError:
+        # pykrx not installed, use fallback prices
+        return get_fallback_prices()
+    except Exception as e:
+        errors.append(f"General error: {str(e)}")
+        return get_fallback_prices()
+    
+    # Fill in any missing with fallback
+    for asset_name in ETF_CONFIG:
+        if asset_name not in prices:
+            fallback = get_fallback_prices()
+            prices[asset_name] = fallback.get(asset_name, {'price': 10000, 'date': '', 'status': 'fallback'})
+    
+    return prices
+
+def get_fallback_prices():
+    """Fallback prices if API fails (approximate values)"""
+    return {
+        'AI Core Power': {'price': 15000, 'date': '', 'status': 'fallback'},
+        'AI Tech TOP10': {'price': 12000, 'date': '', 'status': 'fallback'},
+        'Dividend Stocks': {'price': 11000, 'date': '', 'status': 'fallback'},
+        'Consumer Staples': {'price': 10500, 'date': '', 'status': 'fallback'},
+        'Treasury Bonds': {'price': 9500, 'date': '', 'status': 'fallback'},
+        'Gold': {'price': 14000, 'date': '', 'status': 'fallback'},
+        'Japan TOPIX': {'price': 16000, 'date': '', 'status': 'fallback'},
+        'Cash': {'price': 1, 'date': '', 'status': 'success'},
+    }
+
+def calculate_holdings_value(shares, prices):
+    """Calculate total holdings value from shares and prices"""
+    total_value = 0
+    holdings_detail = {}
+    
+    for asset_name, num_shares in shares.items():
+        if asset_name in prices:
+            price = prices[asset_name]['price']
+            value = num_shares * price
+            holdings_detail[asset_name] = {
+                'shares': num_shares,
+                'price': price,
+                'value': value
+            }
+            total_value += value
+    
+    return total_value, holdings_detail
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # MARKET DATA FUNCTIONS
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -392,7 +539,33 @@ def load_data():
         }
 
 def get_default_holdings():
-    """Get default holdings based on initial balance and target allocation"""
+    """Get default holdings in SHARES (not values) based on initial balance and target allocation"""
+    initial = IRP_CONFIG['initial_balance']
+    
+    # Estimated prices for initial calculation (will be updated with real prices)
+    estimated_prices = {
+        'AI Core Power': 15000,
+        'AI Tech TOP10': 12000,
+        'Dividend Stocks': 11000,
+        'Consumer Staples': 10500,
+        'Treasury Bonds': 9500,
+        'Gold': 14000,
+        'Japan TOPIX': 16000,
+        'Cash': 1,  # Cash is 1:1
+    }
+    
+    holdings = {}
+    for asset, target_pct in ALLOCATION_TARGET.items():
+        target_value = initial * target_pct
+        est_price = estimated_prices.get(asset, 10000)
+        # Calculate number of shares (round to nearest 10 for convenience)
+        shares = int(target_value / est_price / 10) * 10
+        holdings[asset] = shares
+    
+    return holdings
+
+def get_default_holdings_values():
+    """Get default holdings as VALUES (for backward compatibility)"""
     initial = IRP_CONFIG['initial_balance']
     return {
         'AI Core Power': int(initial * 0.28),
@@ -679,57 +852,182 @@ def page_rebalancing_alerts():
     data = load_data()
     progress = calculate_progress(data)
     
-    # Get REAL holdings from data file
-    holdings = data.get('holdings', get_default_holdings())
-    portfolio_value = sum(holdings.values())
-    holdings_updated = data.get('holdings_updated')
-    
-    # Calculate current allocation percentages from real holdings
-    current_allocation = {}
-    for asset, value in holdings.items():
-        if portfolio_value > 0:
-            current_allocation[asset] = (value / portfolio_value) * 100
-        else:
-            current_allocation[asset] = 0
+    # Check if user wants to use shares + API or manual values
+    holdings_mode = data.get('holdings_mode', 'values')  # 'shares' or 'values'
     
     # ═══════════════════════════════════════════════════════════════════════════
     # SECTION 0: UPDATE YOUR HOLDINGS
     # ═══════════════════════════════════════════════════════════════════════════
     st.header("✏️ Section 0: Update Your Holdings")
     
+    holdings_updated = data.get('holdings_updated')
     if holdings_updated:
         st.info(f"📅 Last updated: {holdings_updated[:10]}")
     else:
         st.warning("⚠️ Holdings have never been updated. Using default values.")
     
-    with st.expander("📝 Click to Update Your Current Holdings", expanded=False):
-        st.write("Enter the current value (in KRW) of each asset in your portfolio:")
+    # Mode selection
+    st.subheader("Choose Input Mode")
+    mode_options = {
+        'shares': '📊 Shares Mode (Automatic Prices via pykrx API)',
+        'values': '💰 Values Mode (Manual Entry)'
+    }
+    
+    selected_mode = st.radio(
+        "How do you want to track your holdings?",
+        options=['shares', 'values'],
+        format_func=lambda x: mode_options[x],
+        index=0 if holdings_mode == 'shares' else 1,
+        horizontal=True
+    )
+    
+    # Save mode if changed
+    if selected_mode != holdings_mode:
+        data['holdings_mode'] = selected_mode
+        save_data(data)
+        st.rerun()
+    
+    # Get holdings based on mode
+    if selected_mode == 'shares':
+        # ═══════════════════════════════════════════════════════════════════════
+        # SHARES MODE: Enter number of shares, API fetches prices
+        # ═══════════════════════════════════════════════════════════════════════
+        shares = data.get('shares', get_default_holdings())  # shares stored separately
         
-        updated_holdings = {}
-        cols = st.columns(2)
+        with st.expander("📝 Click to Update Your Share Holdings", expanded=False):
+            st.write("Enter the **number of shares** you own for each ETF:")
+            st.caption("Prices will be fetched automatically from KRX via pykrx API")
+            
+            updated_shares = {}
+            cols = st.columns(2)
+            
+            for idx, asset in enumerate(ALLOCATION_TARGET.keys()):
+                current_shares = shares.get(asset, 0)
+                etf_info = ETF_CONFIG.get(asset, {})
+                code = etf_info.get('code', 'N/A')
+                
+                with cols[idx % 2]:
+                    if asset == 'Cash':
+                        updated_shares[asset] = st.number_input(
+                            f"💵 {asset} (KRW amount)",
+                            value=current_shares,
+                            step=100_000,
+                            min_value=0,
+                            key=f"shares_{asset}"
+                        )
+                    else:
+                        updated_shares[asset] = st.number_input(
+                            f"{asset} ({code})",
+                            value=current_shares,
+                            step=10,
+                            min_value=0,
+                            key=f"shares_{asset}",
+                            help=etf_info.get('name', '')
+                        )
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("💾 Save Shares", use_container_width=True, type="primary"):
+                    data['shares'] = updated_shares
+                    data['holdings_updated'] = datetime.now().isoformat()
+                    save_data(data)
+                    st.cache_data.clear()  # Clear price cache to refetch
+                    st.success("✅ Shares saved successfully!")
+                    st.rerun()
+            
+            with col2:
+                if st.button("🔄 Refresh Prices", use_container_width=True):
+                    st.cache_data.clear()
+                    st.rerun()
         
-        for idx, (asset, current_value) in enumerate(holdings.items()):
-            with cols[idx % 2]:
-                updated_holdings[asset] = st.number_input(
-                    f"{asset}",
-                    value=current_value,
-                    step=100_000,
-                    min_value=0,
-                    key=f"holding_{asset}"
-                )
+        # Fetch current prices from API
+        st.subheader("📡 Live Price Data")
         
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("💾 Save Holdings", use_container_width=True, type="primary"):
-                save_holdings(updated_holdings)
-                st.success("✅ Holdings saved successfully!")
-                st.rerun()
+        with st.spinner("Fetching prices from KRX..."):
+            prices = fetch_etf_prices()
         
-        with col2:
-            new_total = sum(updated_holdings.values())
-            st.metric("New Total Portfolio Value", f"{new_total:,.0f} KRW")
+        # Display price status
+        price_status_data = []
+        for asset, config in ETF_CONFIG.items():
+            if config['code']:
+                price_info = prices.get(asset, {})
+                price_status_data.append({
+                    'Asset': asset,
+                    'Code': config['code'],
+                    'Price (KRW)': f"{price_info.get('price', 0):,}",
+                    'Date': price_info.get('date', 'N/A'),
+                    'Status': '✅' if price_info.get('status') == 'success' else '⚠️ Fallback'
+                })
+        
+        df_prices = pd.DataFrame(price_status_data)
+        st.dataframe(df_prices, use_container_width=True, hide_index=True)
+        
+        # Calculate holdings values from shares * prices
+        holdings = {}
+        holdings_detail = {}
+        for asset in ALLOCATION_TARGET.keys():
+            num_shares = shares.get(asset, 0)
+            price = prices.get(asset, {}).get('price', 0)
+            
+            if asset == 'Cash':
+                value = num_shares  # Cash is already in KRW
+            else:
+                value = num_shares * price
+            
+            holdings[asset] = value
+            holdings_detail[asset] = {
+                'shares': num_shares,
+                'price': price,
+                'value': value
+            }
+        
+        portfolio_value = sum(holdings.values())
+        
+    else:
+        # ═══════════════════════════════════════════════════════════════════════
+        # VALUES MODE: Enter values directly (manual)
+        # ═══════════════════════════════════════════════════════════════════════
+        holdings = data.get('holdings', get_default_holdings_values())
+        
+        with st.expander("📝 Click to Update Your Current Holdings", expanded=False):
+            st.write("Enter the current **value (in KRW)** of each asset in your portfolio:")
+            
+            updated_holdings = {}
+            cols = st.columns(2)
+            
+            for idx, (asset, current_value) in enumerate(holdings.items()):
+                with cols[idx % 2]:
+                    updated_holdings[asset] = st.number_input(
+                        f"{asset}",
+                        value=current_value,
+                        step=100_000,
+                        min_value=0,
+                        key=f"holding_{asset}"
+                    )
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("💾 Save Holdings", use_container_width=True, type="primary"):
+                    save_holdings(updated_holdings)
+                    st.success("✅ Holdings saved successfully!")
+                    st.rerun()
+            
+            with col2:
+                new_total = sum(updated_holdings.values())
+                st.metric("New Total Portfolio Value", f"{new_total:,.0f} KRW")
+        
+        portfolio_value = sum(holdings.values())
+        holdings_detail = None
     
     st.divider()
+    
+    # Calculate current allocation percentages from holdings
+    current_allocation = {}
+    for asset, value in holdings.items():
+        if portfolio_value > 0:
+            current_allocation[asset] = (value / portfolio_value) * 100
+        else:
+            current_allocation[asset] = 0
     
     # ═══════════════════════════════════════════════════════════════════════════
     # SECTION 1: CURRENT PORTFOLIO STATUS
@@ -741,7 +1039,7 @@ def page_rebalancing_alerts():
     # Create a table showing current allocation
     current_status_data = []
     for asset, current_pct in current_allocation.items():
-        target_pct = ALLOCATION_TARGET.get(asset, 0) * 100  # Convert to percentage
+        target_pct = ALLOCATION_TARGET.get(asset, 0) * 100
         drift = current_pct - target_pct
         current_value = holdings[asset]
         
@@ -751,14 +1049,22 @@ def page_rebalancing_alerts():
         else:
             status = "✅ OK"
         
-        current_status_data.append({
+        row_data = {
             'Asset': asset,
             'Current Value': f"{current_value:,.0f}",
             'Current %': f"{current_pct:.1f}%",
             'Target %': f"{target_pct:.1f}%",
             'Drift': f"{drift:+.1f}%",
             'Status': status
-        })
+        }
+        
+        # Add shares info if in shares mode
+        if holdings_detail and asset in holdings_detail:
+            detail = holdings_detail[asset]
+            row_data['Shares'] = f"{detail['shares']:,}"
+            row_data['Price'] = f"{detail['price']:,}"
+        
+        current_status_data.append(row_data)
     
     df_status = pd.DataFrame(current_status_data)
     st.dataframe(df_status, use_container_width=True, hide_index=True)
