@@ -6,6 +6,9 @@ A professional web application for tracking your Korean IRP (Individual Retireme
 
 - **Market Monitoring**: Real-time tracking of S&P 500, NASDAQ, AI sector, and Korean KOSPI
 - **Rebalancing Alerts**: Automatic detection of portfolio drift with specific buy/sell recommendations
+- **Time-Based Rebalancing**: Configurable rebalancing schedule (e.g., every 90 days) with alerts
+- **Transaction Tracking**: Record buy/sell transactions with date, shares, and price
+- **Gains/Losses Analysis**: Calculate unrealized gains/losses based on cost basis (FIFO method)
 - **AI Recommendations**: Intelligent suggestions based on market conditions and your progress
 - **Automatic Price Tracking**: Real-time ETF prices via pykrx API (Korea Exchange data)
 - **Holdings Management**: Track by shares (auto-calculate values) or manual entry
@@ -259,6 +262,33 @@ Prices are automatically fetched from the Korea Exchange (KRX) using the `pykrx`
 Two modes are available:
 - **Shares Mode**: Enter number of shares → prices fetched automatically
 - **Values Mode**: Enter KRW values directly (manual entry)
+
+### Transaction Tracking
+
+Record your buy/sell transactions to calculate accurate gains/losses:
+
+| Field | Description | Required |
+|-------|-------------|----------|
+| Asset | Which ETF (e.g., AI Core Power) | ✅ Yes |
+| Date | Purchase/sale date | ✅ Yes |
+| Type | Buy or Sell | ✅ Yes |
+| Shares | Number of shares | ✅ Yes |
+| Price per Share | Purchase price in KRW | ✅ Yes |
+| Notes | Optional memo | ❌ No |
+
+### Gains/Losses Calculation
+
+The app calculates unrealized gains/losses using the **FIFO (First In, First Out)** method:
+- Tracks your average cost basis per asset
+- Compares with current market prices
+- Shows both absolute gain (KRW) and percentage return
+
+### Time-Based Rebalancing
+
+Configure automatic rebalancing alerts:
+- **Frequency**: How often to rebalance (default: 90 days)
+- **Alert Threshold**: Warn when allocation drifts > X% (default: 5%)
+- **Last Rebalance**: Track when you last rebalanced
 
 ## Monthly Workflow
 
