@@ -231,22 +231,23 @@ copy [backup_location]\irp_tracker_data.json data\
 
 ETF configuration is stored in `data/etf_config.json` for easy maintenance. The app tracks the following Korean ETFs:
 
-| ETF Name | Ticker Code | Category |
-|----------|-------------|----------|
-| KODEX AI Core Power | 457930 | Growth |
-| KODEX AI Tech TOP10 | 483280 | Growth |
-| KODEX Dividend Stocks | 489250 | Defensive |
-| KODEX Consumer Staples | 453630 | Defensive |
-| KODEX Treasury 20+ Year Bond | 484790 | Bonds |
-| Gold | 132030 | Safe Haven |
-| Japan TOPIX | 101280 | International |
+| ETF Name (English) | Korean Name | Ticker Code | Category |
+|-------------------|-------------|-------------|----------|
+| AI Core Power | KODEX 미국AI전력핵심인프라 | 457930 | Growth |
+| AI Tech TOP10 | KODEX 미국AI테크TOP10타겟커버드콜 | 483280 | Growth |
+| Dividend Stocks | KODEX 미국배당다우존스 | 489250 | Defensive |
+| Consumer Staples | KODEX 미국S&P500필수소비재 | 453630 | Defensive |
+| Treasury Bonds | KODEX 미국채30년프리미엄(합성 H) | 484790 | Bonds |
+| Gold | KODEX 골드선물(H) | 132030 | Safe Haven |
+| Japan TOPIX | KODEX 일본TOPIX100 | 101280 | International |
 
 To add or modify ETFs, edit `data/etf_config.json`:
 ```json
 {
     "ETF Name": {
         "code": "123456",
-        "name": "Full ETF Name",
+        "name": "Full ETF Name (English)",
+        "name_kr": "한국어 ETF 이름",
         "type": "Equity|Bond|Commodity|Cash",
         "description": "Description"
     }

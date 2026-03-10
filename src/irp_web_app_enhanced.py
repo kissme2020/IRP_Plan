@@ -66,14 +66,14 @@ def load_etf_config():
     
     # Default fallback configuration
     default_config = {
-        'AI Core Power': {'code': '457930', 'name': 'KODEX AI Core Power', 'type': 'Equity', 'description': 'S&P 500 AI-focused companies'},
-        'AI Tech TOP10': {'code': '483280', 'name': 'KODEX AI Tech TOP10 Target Covered Call', 'type': 'Equity', 'description': 'Top 10 US tech AI companies with covered call'},
-        'Dividend Stocks': {'code': '489250', 'name': 'KODEX US Dividend (Dow Jones)', 'type': 'Equity', 'description': 'US dividend aristocrats'},
-        'Consumer Staples': {'code': '453630', 'name': 'KODEX S&P 500 Consumer Staples', 'type': 'Equity', 'description': 'Defensive US consumer stocks'},
-        'Treasury Bonds': {'code': '484790', 'name': 'KODEX Treasury 20+ Year Bond Active H', 'type': 'Bond', 'description': 'Long-term US Treasury bonds'},
-        'Gold': {'code': '132030', 'name': 'KODEX Gold Futures H', 'type': 'Commodity', 'description': 'Gold commodity ETF'},
-        'Japan TOPIX': {'code': '101280', 'name': 'KODEX Japan TOPIX100', 'type': 'Equity', 'description': 'Top 100 Japanese companies'},
-        'Cash': {'code': None, 'name': 'Cash', 'type': 'Cash', 'description': 'Cash holdings'},
+        'AI Core Power': {'code': '457930', 'name': 'KODEX AI Core Power', 'name_kr': 'KODEX 미국AI전력핵심인프라', 'type': 'Equity', 'description': 'S&P 500 AI-focused companies'},
+        'AI Tech TOP10': {'code': '483280', 'name': 'KODEX AI Tech TOP10 Target Covered Call', 'name_kr': 'KODEX 미국AI테크TOP10타겟커버드콜', 'type': 'Equity', 'description': 'Top 10 US tech AI companies with covered call'},
+        'Dividend Stocks': {'code': '489250', 'name': 'KODEX US Dividend (Dow Jones)', 'name_kr': 'KODEX 미국배당다우존스', 'type': 'Equity', 'description': 'US dividend aristocrats'},
+        'Consumer Staples': {'code': '453630', 'name': 'KODEX S&P 500 Consumer Staples', 'name_kr': 'KODEX 미국S&P500필수소비재', 'type': 'Equity', 'description': 'Defensive US consumer stocks'},
+        'Treasury Bonds': {'code': '484790', 'name': 'KODEX Treasury 20+ Year Bond Active H', 'name_kr': 'KODEX 미국채30년프리미엄(합성 H)', 'type': 'Bond', 'description': 'Long-term US Treasury bonds'},
+        'Gold': {'code': '132030', 'name': 'KODEX Gold Futures H', 'name_kr': 'KODEX 골드선물(H)', 'type': 'Commodity', 'description': 'Gold commodity ETF'},
+        'Japan TOPIX': {'code': '101280', 'name': 'KODEX Japan TOPIX100', 'name_kr': 'KODEX 일본TOPIX100', 'type': 'Equity', 'description': 'Top 100 Japanese companies'},
+        'Cash': {'code': None, 'name': 'Cash', 'name_kr': '현금', 'type': 'Cash', 'description': 'Cash holdings'},
     }
     
     try:
@@ -1074,11 +1074,12 @@ def page_rebalancing_alerts():
             current_shares = shares.get(asset, 0)
             etf_info = ETF_CONFIG.get(asset, {})
             code = etf_info.get('code', 'N/A')
+            name_kr = etf_info.get('name_kr', '')
             
             with cols[idx % 2]:
                 if asset == 'Cash':
                     updated_shares[asset] = st.number_input(
-                        f"💵 {asset} (KRW amount)",
+                        f"💵 {asset} ({name_kr})",
                         value=current_shares,
                         step=100_000,
                         min_value=0,
@@ -1087,12 +1088,12 @@ def page_rebalancing_alerts():
                     )
                 else:
                     updated_shares[asset] = st.number_input(
-                        f"📊 {asset} ({code})",
+                        f"📊 {asset} ({name_kr})",
                         value=current_shares,
                         step=1,
                         min_value=0,
                         key=f"shares_{asset}",
-                        help=f"{etf_info.get('name', '')} - Enter number of shares"
+                        help=f"[{code}] {etf_info.get('name', '')} - Enter number of shares"
                     )
         
         col1, col2 = st.columns(2)
@@ -1121,8 +1122,9 @@ def page_rebalancing_alerts():
     for asset, config in ETF_CONFIG.items():
         if config['code']:
             price_info = prices.get(asset, {})
+            name_kr = config.get('name_kr', '')
             price_status_data.append({
-                'Asset': asset,
+                'Asset': f"{asset} ({name_kr})",
                 'Code': config['code'],
                 'Price (KRW)': f"{price_info.get('price', 0):,}",
                 'Date': price_info.get('date', 'N/A'),
@@ -1157,16 +1159,18 @@ def page_rebalancing_alerts():
     st.subheader("💰 Calculated Portfolio Value")
     summary_data = []
     for asset, detail in holdings_detail.items():
+        etf_info = ETF_CONFIG.get(asset, {})
+        name_kr = etf_info.get('name_kr', '')
         if asset == 'Cash':
             summary_data.append({
-                'Asset': f"💵 {asset}",
+                'Asset': f"💵 {asset} ({name_kr})",
                 'Shares/Amount': f"₩{detail['shares']:,}",
                 'Price': '-',
                 'Value (KRW)': f"₩{detail['value']:,.0f}"
             })
         else:
             summary_data.append({
-                'Asset': f"📊 {asset}",
+                'Asset': f"📊 {asset} ({name_kr})",
                 'Shares/Amount': f"{detail['shares']:,} shares",
                 'Price': f"₩{detail['price']:,}",
                 'Value (KRW)': f"₩{detail['value']:,.0f}"

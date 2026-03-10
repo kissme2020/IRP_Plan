@@ -2,48 +2,56 @@
     "AI Core Power": {
         "code": "457930",
         "name": "KODEX AI Core Power",
+        "name_kr": "KODEX 미국AI전력핵심인프라",
         "type": "Equity",
         "description": "S&P 500 AI-focused companies"
     },
     "AI Tech TOP10": {
         "code": "483280",
         "name": "KODEX AI Tech TOP10 Target Covered Call",
+        "name_kr": "KODEX 미국AI테크TOP10타겟커버드콜",
         "type": "Equity",
         "description": "Top 10 US tech AI companies with covered call"
     },
     "Dividend Stocks": {
         "code": "489250",
         "name": "KODEX US Dividend (Dow Jones)",
+        "name_kr": "KODEX 미국배당다우존스",
         "type": "Equity",
         "description": "US dividend aristocrats"
     },
     "Consumer Staples": {
         "code": "453630",
         "name": "KODEX S&P 500 Consumer Staples",
+        "name_kr": "KODEX 미국S&P500필수소비재",
         "type": "Equity",
         "description": "Defensive US consumer stocks"
     },
     "Treasury Bonds": {
         "code": "484790",
         "name": "KODEX Treasury 20+ Year Bond Active H",
+        "name_kr": "KODEX 미국채30년프리미엄(합성 H)",
         "type": "Bond",
         "description": "Long-term US Treasury bonds"
     },
     "Gold": {
         "code": "132030",
         "name": "KODEX Gold Futures H",
+        "name_kr": "KODEX 골드선물(H)",
         "type": "Commodity",
         "description": "Gold commodity ETF"
     },
     "Japan TOPIX": {
         "code": "101280",
         "name": "KODEX Japan TOPIX100",
+        "name_kr": "KODEX 일본TOPIX100",
         "type": "Equity",
         "description": "Top 100 Japanese companies"
     },
     "Cash": {
         "code": null,
         "name": "Cash",
+        "name_kr": "현금",
         "type": "Cash",
         "description": "Cash holdings"
     }
