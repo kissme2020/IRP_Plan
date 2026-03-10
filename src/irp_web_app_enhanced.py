@@ -59,57 +59,31 @@ ALLOCATION_TARGET = {
     'Cash': 0.28,
 }
 
-# ETF Ticker Configuration (Samsung Fund codes for Korean ETFs)
-ETF_CONFIG = {
-    'AI Core Power': {
-        'code': '457930',
-        'name': 'KODEX AI Core Power',
-        'type': 'Equity',
-        'description': 'S&P 500 AI-focused companies'
-    },
-    'AI Tech TOP10': {
-        'code': '412650',
-        'name': 'KODEX AI Tech TOP10 Target Covered Call',
-        'type': 'Equity',
-        'description': 'Top 10 US tech AI companies with covered call'
-    },
-    'Dividend Stocks': {
-        'code': '489250',
-        'name': 'KODEX US Dividend (Dow Jones)',
-        'type': 'Equity',
-        'description': 'US dividend aristocrats'
-    },
-    'Consumer Staples': {
-        'code': '453630',
-        'name': 'KODEX S&P 500 Consumer Staples',
-        'type': 'Equity',
-        'description': 'Defensive US consumer stocks'
-    },
-    'Treasury Bonds': {
-        'code': '484790',
-        'name': 'KODEX Treasury 20+ Year Bond Active H',
-        'type': 'Bond',
-        'description': 'Long-term US Treasury bonds'
-    },
-    'Gold': {
-        'code': '132030',
-        'name': 'KODEX Gold Futures H',
-        'type': 'Commodity',
-        'description': 'Gold commodity ETF'
-    },
-    'Japan TOPIX': {
-        'code': '101280',
-        'name': 'KODEX Japan TOPIX100',
-        'type': 'Equity',
-        'description': 'Top 100 Japanese companies'
-    },
-    'Cash': {
-        'code': None,  # Cash doesn't have a ticker
-        'name': 'Cash',
-        'type': 'Cash',
-        'description': 'Cash holdings'
-    },
-}
+# ETF Ticker Configuration (loaded from JSON file)
+def load_etf_config():
+    """Load ETF configuration from JSON file with fallback"""
+    config_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'etf_config.json')
+    
+    # Default fallback configuration
+    default_config = {
+        'AI Core Power': {'code': '457930', 'name': 'KODEX AI Core Power', 'type': 'Equity', 'description': 'S&P 500 AI-focused companies'},
+        'AI Tech TOP10': {'code': '412650', 'name': 'KODEX AI Tech TOP10 Target Covered Call', 'type': 'Equity', 'description': 'Top 10 US tech AI companies with covered call'},
+        'Dividend Stocks': {'code': '489250', 'name': 'KODEX US Dividend (Dow Jones)', 'type': 'Equity', 'description': 'US dividend aristocrats'},
+        'Consumer Staples': {'code': '453630', 'name': 'KODEX S&P 500 Consumer Staples', 'type': 'Equity', 'description': 'Defensive US consumer stocks'},
+        'Treasury Bonds': {'code': '484790', 'name': 'KODEX Treasury 20+ Year Bond Active H', 'type': 'Bond', 'description': 'Long-term US Treasury bonds'},
+        'Gold': {'code': '132030', 'name': 'KODEX Gold Futures H', 'type': 'Commodity', 'description': 'Gold commodity ETF'},
+        'Japan TOPIX': {'code': '101280', 'name': 'KODEX Japan TOPIX100', 'type': 'Equity', 'description': 'Top 100 Japanese companies'},
+        'Cash': {'code': None, 'name': 'Cash', 'type': 'Cash', 'description': 'Cash holdings'},
+    }
+    
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        st.warning(f"⚠️ Could not load etf_config.json, using default configuration")
+        return default_config
+
+ETF_CONFIG = load_etf_config()
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # KOREAN ETF PRICE FETCHING (using pykrx)
