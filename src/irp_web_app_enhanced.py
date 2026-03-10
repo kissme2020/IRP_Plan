@@ -1048,9 +1048,6 @@ def page_rebalancing_alerts():
     data = load_data()
     progress = calculate_progress(data)
     
-    # Check if user wants to use shares + API or manual values
-    holdings_mode = data.get('holdings_mode', 'values')  # 'shares' or 'values'
-    
     # ═══════════════════════════════════════════════════════════════════════════
     # SECTION 0: UPDATE YOUR HOLDINGS
     # ═══════════════════════════════════════════════════════════════════════════
@@ -1062,159 +1059,123 @@ def page_rebalancing_alerts():
     else:
         st.warning("⚠️ Holdings have never been updated. Using default values.")
     
-    # Mode selection
-    st.subheader("Choose Input Mode")
-    mode_options = {
-        'shares': '📊 Shares Mode (Automatic Prices via pykrx API)',
-        'values': '💰 Values Mode (Manual Entry)'
-    }
+    st.caption("**ETFs**: Enter number of shares → Value calculated from live prices | **Cash**: Enter KRW amount directly")
     
-    selected_mode = st.radio(
-        "How do you want to track your holdings?",
-        options=['shares', 'values'],
-        format_func=lambda x: mode_options[x],
-        index=0 if holdings_mode == 'shares' else 1,
-        horizontal=True
-    )
+    # Get current shares data
+    shares = data.get('shares', get_default_holdings())
     
-    # Save mode if changed
-    if selected_mode != holdings_mode:
-        data['holdings_mode'] = selected_mode
-        save_data(data)
-        st.rerun()
-    
-    # Get holdings based on mode
-    if selected_mode == 'shares':
-        # ═══════════════════════════════════════════════════════════════════════
-        # SHARES MODE: Enter number of shares, API fetches prices
-        # ═══════════════════════════════════════════════════════════════════════
-        shares = data.get('shares', get_default_holdings())  # shares stored separately
+    with st.expander("📝 Click to Update Your Holdings", expanded=False):
+        st.write("Enter your current holdings:")
         
-        with st.expander("📝 Click to Update Your Share Holdings", expanded=False):
-            st.write("Enter the **number of shares** you own for each ETF:")
-            st.caption("Prices will be fetched automatically from KRX via pykrx API")
+        updated_shares = {}
+        cols = st.columns(2)
+        
+        for idx, asset in enumerate(ALLOCATION_TARGET.keys()):
+            current_shares = shares.get(asset, 0)
+            etf_info = ETF_CONFIG.get(asset, {})
+            code = etf_info.get('code', 'N/A')
             
-            updated_shares = {}
-            cols = st.columns(2)
-            
-            for idx, asset in enumerate(ALLOCATION_TARGET.keys()):
-                current_shares = shares.get(asset, 0)
-                etf_info = ETF_CONFIG.get(asset, {})
-                code = etf_info.get('code', 'N/A')
-                
-                with cols[idx % 2]:
-                    if asset == 'Cash':
-                        updated_shares[asset] = st.number_input(
-                            f"💵 {asset} (KRW amount)",
-                            value=current_shares,
-                            step=100_000,
-                            min_value=0,
-                            key=f"shares_{asset}"
-                        )
-                    else:
-                        updated_shares[asset] = st.number_input(
-                            f"{asset} ({code})",
-                            value=current_shares,
-                            step=10,
-                            min_value=0,
-                            key=f"shares_{asset}",
-                            help=etf_info.get('name', '')
-                        )
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("💾 Save Shares", use_container_width=True, type="primary"):
-                    data['shares'] = updated_shares
-                    data['holdings_updated'] = datetime.now().isoformat()
-                    save_data(data)
-                    st.cache_data.clear()  # Clear price cache to refetch
-                    st.success("✅ Shares saved successfully!")
-                    st.rerun()
-            
-            with col2:
-                if st.button("🔄 Refresh Prices", use_container_width=True):
-                    st.cache_data.clear()
-                    st.rerun()
-        
-        # Fetch current prices from API
-        st.subheader("📡 Live Price Data")
-        
-        with st.spinner("Fetching prices from KRX..."):
-            prices = fetch_etf_prices()
-        
-        # Display price status
-        price_status_data = []
-        for asset, config in ETF_CONFIG.items():
-            if config['code']:
-                price_info = prices.get(asset, {})
-                price_status_data.append({
-                    'Asset': asset,
-                    'Code': config['code'],
-                    'Price (KRW)': f"{price_info.get('price', 0):,}",
-                    'Date': price_info.get('date', 'N/A'),
-                    'Status': '✅' if price_info.get('status') == 'success' else '⚠️ Fallback'
-                })
-        
-        df_prices = pd.DataFrame(price_status_data)
-        st.dataframe(df_prices, use_container_width=True, hide_index=True)
-        
-        # Calculate holdings values from shares * prices
-        holdings = {}
-        holdings_detail = {}
-        for asset in ALLOCATION_TARGET.keys():
-            num_shares = shares.get(asset, 0)
-            price = prices.get(asset, {}).get('price', 0)
-            
-            if asset == 'Cash':
-                value = num_shares  # Cash is already in KRW
-            else:
-                value = num_shares * price
-            
-            holdings[asset] = value
-            holdings_detail[asset] = {
-                'shares': num_shares,
-                'price': price,
-                'value': value
-            }
-        
-        portfolio_value = sum(holdings.values())
-        
-    else:
-        # ═══════════════════════════════════════════════════════════════════════
-        # VALUES MODE: Enter values directly (manual)
-        # ═══════════════════════════════════════════════════════════════════════
-        # Use separate storage for values mode to avoid confusion with shares
-        holdings = data.get('holdings_values', get_default_holdings_values())
-        
-        with st.expander("📝 Click to Update Your Current Holdings", expanded=False):
-            st.write("Enter the current **value (in KRW)** of each asset in your portfolio:")
-            
-            updated_holdings = {}
-            cols = st.columns(2)
-            
-            for idx, (asset, current_value) in enumerate(holdings.items()):
-                with cols[idx % 2]:
-                    updated_holdings[asset] = st.number_input(
-                        f"{asset}",
-                        value=current_value,
+            with cols[idx % 2]:
+                if asset == 'Cash':
+                    updated_shares[asset] = st.number_input(
+                        f"💵 {asset} (KRW amount)",
+                        value=current_shares,
                         step=100_000,
                         min_value=0,
-                        key=f"holding_{asset}"
+                        key=f"shares_{asset}",
+                        help="Enter your cash balance in KRW"
                     )
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("💾 Save Holdings", use_container_width=True, type="primary"):
-                    save_holdings_values(updated_holdings)
-                    st.success("✅ Holdings saved successfully!")
-                    st.rerun()
-            
-            with col2:
-                new_total = sum(updated_holdings.values())
-                st.metric("New Total Portfolio Value", f"{new_total:,.0f} KRW")
+                else:
+                    updated_shares[asset] = st.number_input(
+                        f"📊 {asset} ({code})",
+                        value=current_shares,
+                        step=1,
+                        min_value=0,
+                        key=f"shares_{asset}",
+                        help=f"{etf_info.get('name', '')} - Enter number of shares"
+                    )
         
-        portfolio_value = sum(holdings.values())
-        holdings_detail = None
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💾 Save Holdings", use_container_width=True, type="primary"):
+                data['shares'] = updated_shares
+                data['holdings_updated'] = datetime.now().isoformat()
+                save_data(data)
+                st.cache_data.clear()  # Clear price cache to refetch
+                st.success("✅ Holdings saved successfully!")
+                st.rerun()
+        
+        with col2:
+            if st.button("🔄 Refresh Prices", use_container_width=True):
+                st.cache_data.clear()
+                st.rerun()
+    
+    # Fetch current prices from API
+    st.subheader("📡 Live Price Data & Portfolio Value")
+    
+    with st.spinner("Fetching prices from KRX..."):
+        prices = fetch_etf_prices()
+    
+    # Display price status
+    price_status_data = []
+    for asset, config in ETF_CONFIG.items():
+        if config['code']:
+            price_info = prices.get(asset, {})
+            price_status_data.append({
+                'Asset': asset,
+                'Code': config['code'],
+                'Price (KRW)': f"{price_info.get('price', 0):,}",
+                'Date': price_info.get('date', 'N/A'),
+                'Status': '✅' if price_info.get('status') == 'success' else '⚠️ Fallback'
+            })
+    
+    df_prices = pd.DataFrame(price_status_data)
+    st.dataframe(df_prices, use_container_width=True, hide_index=True)
+    
+    # Calculate holdings values from shares * prices
+    holdings = {}
+    holdings_detail = {}
+    for asset in ALLOCATION_TARGET.keys():
+        num_shares = shares.get(asset, 0)
+        price = prices.get(asset, {}).get('price', 0)
+        
+        if asset == 'Cash':
+            value = num_shares  # Cash is already in KRW
+        else:
+            value = num_shares * price
+        
+        holdings[asset] = value
+        holdings_detail[asset] = {
+            'shares': num_shares,
+            'price': price,
+            'value': value
+        }
+    
+    portfolio_value = sum(holdings.values())
+    
+    # Show calculated portfolio summary
+    st.subheader("💰 Calculated Portfolio Value")
+    summary_data = []
+    for asset, detail in holdings_detail.items():
+        if asset == 'Cash':
+            summary_data.append({
+                'Asset': f"💵 {asset}",
+                'Shares/Amount': f"₩{detail['shares']:,}",
+                'Price': '-',
+                'Value (KRW)': f"₩{detail['value']:,.0f}"
+            })
+        else:
+            summary_data.append({
+                'Asset': f"📊 {asset}",
+                'Shares/Amount': f"{detail['shares']:,} shares",
+                'Price': f"₩{detail['price']:,}",
+                'Value (KRW)': f"₩{detail['value']:,.0f}"
+            })
+    
+    df_summary = pd.DataFrame(summary_data)
+    st.dataframe(df_summary, use_container_width=True, hide_index=True)
+    
+    st.metric("📊 Total Portfolio Value", f"₩{portfolio_value:,.0f} ({portfolio_value/1_000_000:.1f}M KRW)")
     
     st.divider()
     
@@ -1422,26 +1383,14 @@ def page_rebalancing_alerts():
     
     if all_transactions:
         # We have transaction history, calculate gains/losses
-        if selected_mode == 'shares' and 'prices' in dir():
-            current_prices = prices
-        else:
-            # Use estimated prices for calculation
-            current_prices = {
-                'AI Core Power': 15000,
-                'AI Tech TOP10': 12000,
-                'Dividend Stocks': 11000,
-                'Consumer Staples': 10500,
-                'Treasury Bonds': 9500,
-                'Gold': 14000,
-                'Japan TOPIX': 16000,
-                'Cash': 1,
-            }
-            # Try to fetch real prices
-            try:
-                fetched_prices, _ = fetch_etf_prices()
-                current_prices.update(fetched_prices)
-            except:
-                pass
+        # Use prices already fetched above (or use estimated as fallback)
+        current_prices = {}
+        for asset in ALLOCATION_TARGET.keys():
+            if asset == 'Cash':
+                current_prices[asset] = 1
+            else:
+                price_info = prices.get(asset, {})
+                current_prices[asset] = price_info.get('price', 0)
         
         gains_data, total_gain, total_gain_pct = calculate_gains_losses(current_prices)
         
