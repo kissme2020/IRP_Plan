@@ -499,6 +499,15 @@ def load_data():
                 data['holdings_updated'] = None
             if 'rebalance_history' not in data:
                 data['rebalance_history'] = []
+            # New fields for transaction tracking and rebalancing settings
+            if 'transactions' not in data:
+                data['transactions'] = []
+            if 'rebalancing_settings' not in data:
+                data['rebalancing_settings'] = {
+                    'frequency_days': 90,
+                    'last_rebalance_date': None,
+                    'alert_threshold_pct': 5.0
+                }
             return data
     else:
         return {
@@ -510,6 +519,12 @@ def load_data():
             'holdings': get_default_holdings(),
             'holdings_updated': None,
             'rebalance_history': [],
+            'transactions': [],
+            'rebalancing_settings': {
+                'frequency_days': 90,
+                'last_rebalance_date': None,
+                'alert_threshold_pct': 5.0
+            },
         }
 
 def get_default_holdings():
@@ -583,6 +598,202 @@ def save_data(data):
     data_file = get_data_file()
     with open(data_file, 'w') as f:
         json.dump(data, f, indent=2, default=str)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TRANSACTION TRACKING (Purchase History)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def generate_transaction_id():
+    """Generate unique transaction ID"""
+    import uuid
+    return str(uuid.uuid4())[:8]
+
+def add_transaction(asset, trans_type, date_str, shares, price_per_share, notes=""):
+    """Add a buy or sell transaction"""
+    data = load_data()
+    
+    if 'transactions' not in data:
+        data['transactions'] = []
+    
+    transaction = {
+        'id': generate_transaction_id(),
+        'asset': asset,
+        'type': trans_type,  # 'buy' or 'sell'
+        'date': date_str,
+        'shares': shares,
+        'price_per_share': price_per_share,
+        'total_cost': shares * price_per_share,
+        'notes': notes,
+        'created_at': datetime.now().isoformat()
+    }
+    
+    data['transactions'].append(transaction)
+    save_data(data)
+    return transaction
+
+def delete_transaction(transaction_id):
+    """Delete a transaction by ID"""
+    data = load_data()
+    if 'transactions' in data:
+        data['transactions'] = [t for t in data['transactions'] if t['id'] != transaction_id]
+        save_data(data)
+        return True
+    return False
+
+def get_transactions(asset=None):
+    """Get all transactions, optionally filtered by asset"""
+    data = load_data()
+    transactions = data.get('transactions', [])
+    
+    if asset:
+        transactions = [t for t in transactions if t['asset'] == asset]
+    
+    # Sort by date
+    transactions.sort(key=lambda x: x['date'], reverse=True)
+    return transactions
+
+def calculate_cost_basis(asset):
+    """Calculate average cost basis for an asset using FIFO method"""
+    transactions = get_transactions(asset)
+    
+    total_shares = 0
+    total_cost = 0
+    
+    for trans in transactions:
+        if trans['type'] == 'buy':
+            total_shares += trans['shares']
+            total_cost += trans['total_cost']
+        elif trans['type'] == 'sell':
+            if total_shares > 0:
+                # FIFO: reduce cost proportionally
+                avg_cost = total_cost / total_shares if total_shares > 0 else 0
+                total_shares -= trans['shares']
+                total_cost -= trans['shares'] * avg_cost
+    
+    avg_cost_basis = total_cost / total_shares if total_shares > 0 else 0
+    
+    return {
+        'total_shares': max(0, total_shares),
+        'total_cost': max(0, total_cost),
+        'avg_cost_basis': avg_cost_basis
+    }
+
+def calculate_gains_losses(current_prices):
+    """Calculate unrealized gains/losses for all assets"""
+    data = load_data()
+    shares = data.get('shares', {})
+    
+    gains_losses = {}
+    total_gain = 0
+    total_cost = 0
+    
+    for asset in ALLOCATION_TARGET.keys():
+        if asset == 'Cash':
+            continue
+            
+        cost_info = calculate_cost_basis(asset)
+        current_shares = shares.get(asset, 0)
+        current_price = current_prices.get(asset, 0)
+        
+        current_value = current_shares * current_price
+        
+        # Use shares from transactions if available, otherwise from current holdings
+        if cost_info['total_shares'] > 0:
+            cost_basis = cost_info['total_cost']
+            avg_cost = cost_info['avg_cost_basis']
+        else:
+            # No transactions recorded, assume current value is cost
+            cost_basis = current_value
+            avg_cost = current_price
+        
+        unrealized_gain = current_value - cost_basis
+        gain_pct = (unrealized_gain / cost_basis * 100) if cost_basis > 0 else 0
+        
+        gains_losses[asset] = {
+            'shares': current_shares,
+            'avg_cost_basis': avg_cost,
+            'total_cost': cost_basis,
+            'current_price': current_price,
+            'current_value': current_value,
+            'unrealized_gain': unrealized_gain,
+            'gain_pct': gain_pct
+        }
+        
+        total_gain += unrealized_gain
+        total_cost += cost_basis
+    
+    total_gain_pct = (total_gain / total_cost * 100) if total_cost > 0 else 0
+    
+    return gains_losses, total_gain, total_gain_pct
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# TIME-BASED REBALANCING ALERTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_rebalancing_settings():
+    """Get rebalancing settings"""
+    data = load_data()
+    settings = data.get('rebalancing_settings', {
+        'frequency_days': 90,
+        'last_rebalance_date': None,
+        'alert_threshold_pct': 5.0  # Alert if allocation drifts more than 5%
+    })
+    return settings
+
+def save_rebalancing_settings(settings):
+    """Save rebalancing settings"""
+    data = load_data()
+    data['rebalancing_settings'] = settings
+    save_data(data)
+
+def check_time_based_rebalancing():
+    """Check if it's time to rebalance based on schedule"""
+    settings = get_rebalancing_settings()
+    
+    last_rebalance = settings.get('last_rebalance_date')
+    frequency_days = settings.get('frequency_days', 90)
+    
+    if not last_rebalance:
+        return {
+            'should_rebalance': True,
+            'days_since_last': None,
+            'days_until_next': 0,
+            'message': '⚠️ No rebalancing recorded. Consider setting your initial rebalance date.'
+        }
+    
+    try:
+        last_date = datetime.fromisoformat(last_rebalance)
+        days_since = (datetime.now() - last_date).days
+        days_until_next = max(0, frequency_days - days_since)
+        
+        should_rebalance = days_since >= frequency_days
+        
+        if should_rebalance:
+            message = f"🚨 REBALANCING DUE! Last rebalanced {days_since} days ago (target: every {frequency_days} days)"
+        elif days_until_next <= 7:
+            message = f"⏰ Rebalancing due in {days_until_next} days"
+        else:
+            message = f"✅ Next rebalancing in {days_until_next} days"
+        
+        return {
+            'should_rebalance': should_rebalance,
+            'days_since_last': days_since,
+            'days_until_next': days_until_next,
+            'message': message
+        }
+    except:
+        return {
+            'should_rebalance': True,
+            'days_since_last': None,
+            'days_until_next': 0,
+            'message': '⚠️ Could not parse last rebalance date.'
+        }
+
+def record_rebalance_date():
+    """Record today as the last rebalance date"""
+    settings = get_rebalancing_settings()
+    settings['last_rebalance_date'] = datetime.now().isoformat()
+    save_rebalancing_settings(settings)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CALCULATIONS
@@ -995,6 +1206,127 @@ def page_rebalancing_alerts():
     
     st.divider()
     
+    # ═══════════════════════════════════════════════════════════════════════════
+    # SECTION 0.5: TRANSACTION HISTORY (Purchase/Sale Tracking)
+    # ═══════════════════════════════════════════════════════════════════════════
+    st.header("💳 Section 0.5: Transaction History")
+    st.caption("Track your buy/sell transactions to calculate accurate gains/losses")
+    
+    # Add new transaction
+    with st.expander("➕ Add New Transaction", expanded=False):
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            trans_asset = st.selectbox(
+                "Asset",
+                options=[a for a in ALLOCATION_TARGET.keys() if a != 'Cash'],
+                key="trans_asset"
+            )
+        
+        with col2:
+            trans_type = st.selectbox(
+                "Transaction Type",
+                options=['buy', 'sell'],
+                format_func=lambda x: '🟢 Buy' if x == 'buy' else '🔴 Sell',
+                key="trans_type"
+            )
+        
+        with col3:
+            trans_date = st.date_input(
+                "Transaction Date",
+                value=datetime.now(),
+                key="trans_date"
+            )
+        
+        col4, col5, col6 = st.columns(3)
+        
+        with col4:
+            trans_shares = st.number_input(
+                "Number of Shares",
+                min_value=1,
+                value=10,
+                step=1,
+                key="trans_shares"
+            )
+        
+        with col5:
+            trans_price = st.number_input(
+                "Price per Share (KRW)",
+                min_value=1,
+                value=10000,
+                step=100,
+                key="trans_price"
+            )
+        
+        with col6:
+            trans_total = trans_shares * trans_price
+            st.metric("Total Amount", f"₩{trans_total:,.0f}")
+        
+        trans_notes = st.text_input("Notes (optional)", key="trans_notes")
+        
+        if st.button("💾 Save Transaction", type="primary", key="save_trans"):
+            add_transaction(
+                asset=trans_asset,
+                trans_type=trans_type,
+                date_str=trans_date.strftime("%Y-%m-%d"),
+                shares=trans_shares,
+                price_per_share=trans_price,
+                notes=trans_notes
+            )
+            st.success(f"✅ Transaction recorded: {trans_type.upper()} {trans_shares} shares of {trans_asset}")
+            st.rerun()
+    
+    # Show transaction history
+    all_transactions = get_transactions()
+    
+    if all_transactions:
+        with st.expander(f"📜 View Transaction History ({len(all_transactions)} transactions)", expanded=False):
+            # Filter by asset
+            filter_asset = st.selectbox(
+                "Filter by Asset",
+                options=['All'] + [a for a in ALLOCATION_TARGET.keys() if a != 'Cash'],
+                key="filter_trans_asset"
+            )
+            
+            filtered_trans = all_transactions if filter_asset == 'All' else get_transactions(filter_asset)
+            
+            if filtered_trans:
+                trans_table = []
+                for t in filtered_trans:
+                    trans_table.append({
+                        'ID': t['id'],
+                        'Date': t['date'],
+                        'Asset': t['asset'],
+                        'Type': '🟢 Buy' if t['type'] == 'buy' else '🔴 Sell',
+                        'Shares': t['shares'],
+                        'Price': f"₩{t['price_per_share']:,.0f}",
+                        'Total': f"₩{t['total_cost']:,.0f}",
+                        'Notes': t.get('notes', '')
+                    })
+                
+                df_trans = pd.DataFrame(trans_table)
+                st.dataframe(df_trans, use_container_width=True, hide_index=True)
+                
+                # Option to delete transaction
+                st.caption("To delete a transaction, enter its ID:")
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    delete_id = st.text_input("Transaction ID to delete", key="delete_trans_id")
+                with col2:
+                    if st.button("🗑️ Delete", key="delete_trans_btn"):
+                        if delete_id:
+                            if delete_transaction(delete_id):
+                                st.success(f"Deleted transaction {delete_id}")
+                                st.rerun()
+                            else:
+                                st.error("Transaction not found")
+            else:
+                st.info(f"No transactions found for {filter_asset}")
+    else:
+        st.info("💡 No transactions recorded yet. Click 'Add New Transaction' to start tracking your purchases.")
+    
+    st.divider()
+    
     # Calculate current allocation percentages from holdings
     current_allocation = {}
     for asset, value in holdings.items():
@@ -1069,9 +1401,139 @@ def page_rebalancing_alerts():
     st.divider()
     
     # ═══════════════════════════════════════════════════════════════════════════
+    # SECTION 1.5: GAINS/LOSSES ANALYSIS
+    # ═══════════════════════════════════════════════════════════════════════════
+    st.header("📈 Section 1.5: Gains/Losses Analysis")
+    
+    # Only show gains/losses if we have transaction history
+    all_transactions = get_transactions()
+    
+    if all_transactions:
+        # We have transaction history, calculate gains/losses
+        if selected_mode == 'shares' and 'prices' in dir():
+            current_prices = prices
+        else:
+            # Use estimated prices for calculation
+            current_prices = {
+                'AI Core Power': 15000,
+                'AI Tech TOP10': 12000,
+                'Dividend Stocks': 11000,
+                'Consumer Staples': 10500,
+                'Treasury Bonds': 9500,
+                'Gold': 14000,
+                'Japan TOPIX': 16000,
+                'Cash': 1,
+            }
+            # Try to fetch real prices
+            try:
+                fetched_prices, _ = fetch_etf_prices()
+                current_prices.update(fetched_prices)
+            except:
+                pass
+        
+        gains_data, total_gain, total_gain_pct = calculate_gains_losses(current_prices)
+        
+        # Summary metrics
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            total_cost = sum(g['total_cost'] for g in gains_data.values())
+            st.metric("Total Cost Basis", f"₩{total_cost:,.0f}")
+        with col2:
+            total_current = sum(g['current_value'] for g in gains_data.values())
+            st.metric("Total Current Value", f"₩{total_current:,.0f}")
+        with col3:
+            gain_color = "normal" if total_gain >= 0 else "inverse"
+            st.metric("Total Unrealized Gain/Loss", 
+                     f"₩{total_gain:,.0f}",
+                     delta=f"{total_gain_pct:+.1f}%",
+                     delta_color=gain_color)
+        
+        # Detailed gains table
+        with st.expander("📊 Detailed Gains/Losses by Asset", expanded=False):
+            gains_table = []
+            for asset, data_item in gains_data.items():
+                gains_table.append({
+                    'Asset': asset,
+                    'Shares': data_item['shares'],
+                    'Avg Cost': f"₩{data_item['avg_cost_basis']:,.0f}",
+                    'Current Price': f"₩{data_item['current_price']:,.0f}",
+                    'Total Cost': f"₩{data_item['total_cost']:,.0f}",
+                    'Current Value': f"₩{data_item['current_value']:,.0f}",
+                    'Gain/Loss': f"₩{data_item['unrealized_gain']:,.0f}",
+                    'Return %': f"{data_item['gain_pct']:+.1f}%"
+                })
+            
+            df_gains = pd.DataFrame(gains_table)
+            st.dataframe(df_gains, use_container_width=True, hide_index=True)
+    else:
+        st.info("💡 No transaction history recorded yet. Add your purchase history to see gains/losses analysis.")
+        st.caption("Go to 'Transaction History' section below to record your buy/sell transactions.")
+    
+    st.divider()
+    
+    # ═══════════════════════════════════════════════════════════════════════════
     # SECTION 2: ALERTS - ASSETS NEEDING REBALANCING
     # ═══════════════════════════════════════════════════════════════════════════
     st.header("🚨 Section 2: Rebalancing Alerts")
+    
+    # Time-based rebalancing check
+    st.subheader("⏰ Time-Based Rebalancing")
+    time_check = check_time_based_rebalancing()
+    
+    if time_check['should_rebalance']:
+        st.error(time_check['message'])
+    elif time_check['days_until_next'] <= 7:
+        st.warning(time_check['message'])
+    else:
+        st.success(time_check['message'])
+    
+    # Rebalancing frequency settings
+    with st.expander("⚙️ Rebalancing Schedule Settings"):
+        settings = get_rebalancing_settings()
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            new_frequency = st.number_input(
+                "Rebalancing Frequency (days)",
+                min_value=7,
+                max_value=365,
+                value=settings.get('frequency_days', 90),
+                step=7,
+                help="How often you want to rebalance your portfolio"
+            )
+        
+        with col2:
+            new_threshold = st.number_input(
+                "Alert Threshold (%)",
+                min_value=1.0,
+                max_value=20.0,
+                value=settings.get('alert_threshold_pct', 5.0),
+                step=0.5,
+                help="Alert when allocation drifts more than this %"
+            )
+        
+        col3, col4 = st.columns(2)
+        with col3:
+            if st.button("💾 Save Settings", key="save_rebal_settings"):
+                new_settings = {
+                    'frequency_days': new_frequency,
+                    'alert_threshold_pct': new_threshold,
+                    'last_rebalance_date': settings.get('last_rebalance_date')
+                }
+                save_rebalancing_settings(new_settings)
+                st.success("Settings saved!")
+                st.rerun()
+        
+        with col4:
+            if st.button("📅 Mark Rebalanced Today", key="mark_rebalanced"):
+                record_rebalance_date()
+                st.success("✅ Rebalance date recorded!")
+                st.rerun()
+    
+    st.divider()
+    
+    # Drift-based alerts
+    st.subheader("📊 Allocation Drift Alerts")
     
     recommendations = get_rebalancing_recommendations(data, current_allocation)
     
