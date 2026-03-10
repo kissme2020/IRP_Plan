@@ -14,13 +14,133 @@
     "Japan TOPIX": 210,
     "Cash": 49196000
   },
-  "holdings_updated": null,
+  "holdings_updated": "2026-03-10T14:04:44.815628",
   "rebalance_history": [],
-  "transactions": [],
+  "transactions": [
+    {
+      "id": "497cda46",
+      "asset": "Japan TOPIX",
+      "type": "buy",
+      "date": "2025-12-29",
+      "shares": 65,
+      "price_per_share": 27300,
+      "total_cost": 1774500,
+      "notes": "",
+      "created_at": "2026-03-10T13:50:12.870408"
+    },
+    {
+      "id": "f3515645",
+      "asset": "Japan TOPIX",
+      "type": "buy",
+      "date": "2026-01-08",
+      "shares": 17,
+      "price_per_share": 27870,
+      "total_cost": 473790,
+      "notes": "",
+      "created_at": "2026-03-10T13:51:03.013871"
+    },
+    {
+      "id": "dd8829ae",
+      "asset": "Japan TOPIX",
+      "type": "buy",
+      "date": "2026-02-05",
+      "shares": 22,
+      "price_per_share": 28809,
+      "total_cost": 633798,
+      "notes": "",
+      "created_at": "2026-03-10T13:52:11.357268"
+    },
+    {
+      "id": "6c127aca",
+      "asset": "Gold",
+      "type": "buy",
+      "date": "2025-09-25",
+      "shares": 567,
+      "price_per_share": 24315,
+      "total_cost": 13786605,
+      "notes": "",
+      "created_at": "2026-03-10T13:56:46.797226"
+    },
+    {
+      "id": "f3742720",
+      "asset": "Gold",
+      "type": "buy",
+      "date": "2026-01-08",
+      "shares": 7,
+      "price_per_share": 29615,
+      "total_cost": 207305,
+      "notes": "",
+      "created_at": "2026-03-10T13:59:42.554670"
+    },
+    {
+      "id": "3fdb5367",
+      "asset": "Japan TOPIX",
+      "type": "buy",
+      "date": "2026-01-08",
+      "shares": 17,
+      "price_per_share": 27870,
+      "total_cost": 473790,
+      "notes": "",
+      "created_at": "2026-03-10T14:00:31.846173"
+    },
+    {
+      "id": "2ab6bf63",
+      "asset": "AI Tech TOP10",
+      "type": "buy",
+      "date": "2025-05-09",
+      "shares": 4186,
+      "price_per_share": 9483,
+      "total_cost": 39695838,
+      "notes": "",
+      "created_at": "2026-03-10T14:02:07.938683"
+    },
+    {
+      "id": "2610e7f2",
+      "asset": "AI Core Power",
+      "type": "buy",
+      "date": "2025-05-19",
+      "shares": 1540,
+      "price_per_share": 12985,
+      "total_cost": 19996900,
+      "notes": "",
+      "created_at": "2026-03-10T14:03:08.903449"
+    },
+    {
+      "id": "03721f21",
+      "asset": "AI Core Power",
+      "type": "buy",
+      "date": "2025-09-19",
+      "shares": 884,
+      "price_per_share": 16960,
+      "total_cost": 14992640,
+      "notes": "",
+      "created_at": "2026-03-10T14:03:52.471636"
+    }
+  ],
   "rebalancing_settings": {
     "frequency_days": 90,
-    "last_rebalance_date": null,
-    "alert_threshold_pct": 5.0
+    "alert_threshold_pct": 5.0,
+    "last_rebalance_date": null
   },
-  "holdings_mode": "values"
+  "holdings_mode": "values",
+  "holdings_values": {
+    "AI Core Power": 49196000,
+    "AI Tech TOP10": 24598000,
+    "Dividend Stocks": 17570000,
+    "Consumer Staples": 14056000,
+    "Treasury Bonds": 19327000,
+    "Gold": 12299000,
+    "Japan TOPIX": 3514000,
+    "Cash": 35140000
+  },
+  "shares": {
+    "AI Core Power": 2424,
+    "AI Tech TOP10": 2040,
+    "Dividend Stocks": 0,
+    "Consumer Staples": 0,
+    "Treasury Bonds": 0,
+    "Gold": 574,
+    "Japan TOPIX": 104,
+    "Cash": 53921431
+  }
 }

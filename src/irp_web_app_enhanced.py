@@ -67,7 +67,7 @@ def load_etf_config():
     # Default fallback configuration
     default_config = {
         'AI Core Power': {'code': '457930', 'name': 'KODEX AI Core Power', 'type': 'Equity', 'description': 'S&P 500 AI-focused companies'},
-        'AI Tech TOP10': {'code': '412650', 'name': 'KODEX AI Tech TOP10 Target Covered Call', 'type': 'Equity', 'description': 'Top 10 US tech AI companies with covered call'},
+        'AI Tech TOP10': {'code': '483280', 'name': 'KODEX AI Tech TOP10 Target Covered Call', 'type': 'Equity', 'description': 'Top 10 US tech AI companies with covered call'},
         'Dividend Stocks': {'code': '489250', 'name': 'KODEX US Dividend (Dow Jones)', 'type': 'Equity', 'description': 'US dividend aristocrats'},
         'Consumer Staples': {'code': '453630', 'name': 'KODEX S&P 500 Consumer Staples', 'type': 'Equity', 'description': 'Defensive US consumer stocks'},
         'Treasury Bonds': {'code': '484790', 'name': 'KODEX Treasury 20+ Year Bond Active H', 'type': 'Bond', 'description': 'Long-term US Treasury bonds'},

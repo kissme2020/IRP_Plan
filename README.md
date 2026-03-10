@@ -234,7 +234,7 @@ ETF configuration is stored in `data/etf_config.json` for easy maintenance. The 
 | ETF Name | Ticker Code | Category |
 |----------|-------------|----------|
 | KODEX AI Core Power | 457930 | Growth |
-| KODEX AI Tech TOP10 | 412650 | Growth |
+| KODEX AI Tech TOP10 | 483280 | Growth |
 | KODEX Dividend Stocks | 489250 | Defensive |
 | KODEX Consumer Staples | 453630 | Defensive |
 | KODEX Treasury 20+ Year Bond | 484790 | Bonds |
