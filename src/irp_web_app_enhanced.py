@@ -370,7 +370,15 @@ def load_data():
     data_file = get_data_file()
     if os.path.exists(data_file):
         with open(data_file, 'r') as f:
-            return json.load(f)
+            data = json.load(f)
+            # Ensure holdings structure exists (for backward compatibility)
+            if 'holdings' not in data:
+                data['holdings'] = get_default_holdings()
+            if 'holdings_updated' not in data:
+                data['holdings_updated'] = None
+            if 'rebalance_history' not in data:
+                data['rebalance_history'] = []
+            return data
     else:
         return {
             'created_date': datetime.now().isoformat(),
@@ -378,7 +386,50 @@ def load_data():
             'monthly_entries': [],
             'rsu_vesting': [],
             'rebalancing_history': [],
+            'holdings': get_default_holdings(),
+            'holdings_updated': None,
+            'rebalance_history': [],
         }
+
+def get_default_holdings():
+    """Get default holdings based on initial balance and target allocation"""
+    initial = IRP_CONFIG['initial_balance']
+    return {
+        'AI Core Power': int(initial * 0.28),
+        'AI Tech TOP10': int(initial * 0.14),
+        'Dividend Stocks': int(initial * 0.10),
+        'Consumer Staples': int(initial * 0.08),
+        'Treasury Bonds': int(initial * 0.11),
+        'Gold': int(initial * 0.07),
+        'Japan TOPIX': int(initial * 0.02),
+        'Cash': int(initial * 0.20),  # Start with some cash buffer
+    }
+
+def save_holdings(holdings):
+    """Save updated holdings"""
+    data = load_data()
+    data['holdings'] = holdings
+    data['holdings_updated'] = datetime.now().isoformat()
+    save_data(data)
+    return True
+
+def record_rebalance(trades_executed, notes=""):
+    """Record a rebalancing action"""
+    data = load_data()
+    rebalance_record = {
+        'date': datetime.now().isoformat(),
+        'trades': trades_executed,
+        'notes': notes,
+        'portfolio_value_before': sum(data['holdings'].values()),
+    }
+    data['rebalance_history'].append(rebalance_record)
+    save_data(data)
+    return True
+
+def get_holdings():
+    """Get current holdings"""
+    data = load_data()
+    return data.get('holdings', get_default_holdings())
 
 def save_data(data):
     """Save data to JSON file"""
@@ -627,19 +678,58 @@ def page_rebalancing_alerts():
     
     data = load_data()
     progress = calculate_progress(data)
-    portfolio_value = calculate_current_balance(data)
     
-    # Simulated current allocation (in real app, would calculate from actual holdings)
-    simulated_allocation = {
-        'AI Core Power': 30.0,      # Target: 28%
-        'AI Tech TOP10': 15.0,      # Target: 14%
-        'Dividend Stocks': 9.0,     # Target: 10%
-        'Consumer Staples': 8.0,    # Target: 8%
-        'Treasury Bonds': 10.0,     # Target: 11%
-        'Gold': 8.0,                # Target: 7%
-        'Japan TOPIX': 2.0,         # Target: 2%
-        'Cash': 18.0,               # Target: 28%
-    }
+    # Get REAL holdings from data file
+    holdings = data.get('holdings', get_default_holdings())
+    portfolio_value = sum(holdings.values())
+    holdings_updated = data.get('holdings_updated')
+    
+    # Calculate current allocation percentages from real holdings
+    current_allocation = {}
+    for asset, value in holdings.items():
+        if portfolio_value > 0:
+            current_allocation[asset] = (value / portfolio_value) * 100
+        else:
+            current_allocation[asset] = 0
+    
+    # ═══════════════════════════════════════════════════════════════════════════
+    # SECTION 0: UPDATE YOUR HOLDINGS
+    # ═══════════════════════════════════════════════════════════════════════════
+    st.header("✏️ Section 0: Update Your Holdings")
+    
+    if holdings_updated:
+        st.info(f"📅 Last updated: {holdings_updated[:10]}")
+    else:
+        st.warning("⚠️ Holdings have never been updated. Using default values.")
+    
+    with st.expander("📝 Click to Update Your Current Holdings", expanded=False):
+        st.write("Enter the current value (in KRW) of each asset in your portfolio:")
+        
+        updated_holdings = {}
+        cols = st.columns(2)
+        
+        for idx, (asset, current_value) in enumerate(holdings.items()):
+            with cols[idx % 2]:
+                updated_holdings[asset] = st.number_input(
+                    f"{asset}",
+                    value=current_value,
+                    step=100_000,
+                    min_value=0,
+                    key=f"holding_{asset}"
+                )
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("💾 Save Holdings", use_container_width=True, type="primary"):
+                save_holdings(updated_holdings)
+                st.success("✅ Holdings saved successfully!")
+                st.rerun()
+        
+        with col2:
+            new_total = sum(updated_holdings.values())
+            st.metric("New Total Portfolio Value", f"{new_total:,.0f} KRW")
+    
+    st.divider()
     
     # ═══════════════════════════════════════════════════════════════════════════
     # SECTION 1: CURRENT PORTFOLIO STATUS
@@ -650,10 +740,10 @@ def page_rebalancing_alerts():
     
     # Create a table showing current allocation
     current_status_data = []
-    for asset, current_pct in simulated_allocation.items():
+    for asset, current_pct in current_allocation.items():
         target_pct = ALLOCATION_TARGET.get(asset, 0) * 100  # Convert to percentage
         drift = current_pct - target_pct
-        current_value = portfolio_value * (current_pct / 100)
+        current_value = holdings[asset]
         
         # Determine status
         if abs(drift) > 5:
@@ -663,10 +753,10 @@ def page_rebalancing_alerts():
         
         current_status_data.append({
             'Asset': asset,
+            'Current Value': f"{current_value:,.0f}",
             'Current %': f"{current_pct:.1f}%",
             'Target %': f"{target_pct:.1f}%",
             'Drift': f"{drift:+.1f}%",
-            'Current Value (KRW)': f"{current_value:,.0f}",
             'Status': status
         })
     
@@ -677,11 +767,11 @@ def page_rebalancing_alerts():
     st.subheader("Current vs Target Allocation")
     
     chart_data = []
-    for asset in simulated_allocation:
+    for asset in current_allocation:
         chart_data.append({
             'Asset': asset,
             'Type': 'Current',
-            'Percentage': simulated_allocation[asset]
+            'Percentage': current_allocation[asset]
         })
         chart_data.append({
             'Asset': asset,
@@ -703,7 +793,7 @@ def page_rebalancing_alerts():
     # ═══════════════════════════════════════════════════════════════════════════
     st.header("🚨 Section 2: Rebalancing Alerts")
     
-    recommendations = get_rebalancing_recommendations(data, simulated_allocation)
+    recommendations = get_rebalancing_recommendations(data, current_allocation)
     
     if recommendations:
         st.warning(f"⚠️ Found {len(recommendations)} asset(s) with drift > 5% that need rebalancing")
@@ -737,16 +827,15 @@ def page_rebalancing_alerts():
     
     st.write("Based on your current portfolio, here are the specific trades to execute:")
     
-    # Calculate trades
+    # Calculate trades using real holdings
     trades_buy = []
     trades_sell = []
     total_buy = 0
     total_sell = 0
     
-    for asset, current_pct in simulated_allocation.items():
+    for asset, current_value in holdings.items():
         target_pct = ALLOCATION_TARGET.get(asset, 0)
-        current_value = portfolio_value * (current_pct / 100)
-        target_value = portfolio_value * target_pct  # Fixed: removed * 100
+        target_value = portfolio_value * target_pct
         difference = target_value - current_value
         
         if abs(difference) > 500_000:  # Only if > 500K difference
@@ -755,7 +844,8 @@ def page_rebalancing_alerts():
                     'Asset': asset,
                     'Current Value': f"{current_value:,.0f}",
                     'Target Value': f"{target_value:,.0f}",
-                    'Amount to BUY': f"{abs(difference):,.0f}"
+                    'Amount to BUY': f"{abs(difference):,.0f}",
+                    '_amount': abs(difference)
                 })
                 total_buy += abs(difference)
             else:
@@ -763,14 +853,15 @@ def page_rebalancing_alerts():
                     'Asset': asset,
                     'Current Value': f"{current_value:,.0f}",
                     'Target Value': f"{target_value:,.0f}",
-                    'Amount to SELL': f"{abs(difference):,.0f}"
+                    'Amount to SELL': f"{abs(difference):,.0f}",
+                    '_amount': abs(difference)
                 })
                 total_sell += abs(difference)
     
     # Show SELL trades first
     if trades_sell:
         st.subheader("📉 Step 1: SELL These Assets (Do First)")
-        df_sell = pd.DataFrame(trades_sell)
+        df_sell = pd.DataFrame([{k: v for k, v in t.items() if not k.startswith('_')} for t in trades_sell])
         st.dataframe(df_sell, use_container_width=True, hide_index=True)
         st.metric("Total to Sell", f"{total_sell:,.0f} KRW")
     else:
@@ -781,7 +872,7 @@ def page_rebalancing_alerts():
     # Show BUY trades second
     if trades_buy:
         st.subheader("📈 Step 2: BUY These Assets (Do Second)")
-        df_buy = pd.DataFrame(trades_buy)
+        df_buy = pd.DataFrame([{k: v for k, v in t.items() if not k.startswith('_')} for t in trades_buy])
         st.dataframe(df_buy, use_container_width=True, hide_index=True)
         st.metric("Total to Buy", f"{total_buy:,.0f} KRW")
     else:
@@ -808,8 +899,76 @@ def page_rebalancing_alerts():
         2. ✅ Then BUY underweight assets
         3. ✅ Review after execution to confirm alignment
         """)
+        
+        # ═══════════════════════════════════════════════════════════════════════
+        # SECTION 4: RECORD REBALANCING
+        # ═══════════════════════════════════════════════════════════════════════
+        st.divider()
+        st.header("✅ Section 4: Record Your Rebalancing")
+        
+        st.write("After executing the trades, update your holdings to reflect the new values:")
+        
+        with st.expander("📝 I've completed the rebalancing - Update my holdings", expanded=False):
+            st.write("Enter the new values after rebalancing:")
+            
+            new_holdings = {}
+            cols = st.columns(2)
+            
+            for idx, (asset, current_value) in enumerate(holdings.items()):
+                # Calculate suggested new value (target)
+                target_pct = ALLOCATION_TARGET.get(asset, 0)
+                suggested_value = int(portfolio_value * target_pct)
+                
+                with cols[idx % 2]:
+                    new_holdings[asset] = st.number_input(
+                        f"{asset} (Suggested: {suggested_value:,})",
+                        value=suggested_value,
+                        step=100_000,
+                        min_value=0,
+                        key=f"new_holding_{asset}"
+                    )
+            
+            notes = st.text_input("Notes (optional)", placeholder="e.g., Quarterly rebalancing March 2026")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("💾 Save New Holdings & Record Rebalance", use_container_width=True, type="primary"):
+                    # Record the trades
+                    all_trades = []
+                    for t in trades_sell:
+                        all_trades.append({'action': 'SELL', 'asset': t['Asset'], 'amount': t['_amount']})
+                    for t in trades_buy:
+                        all_trades.append({'action': 'BUY', 'asset': t['Asset'], 'amount': t['_amount']})
+                    
+                    record_rebalance(all_trades, notes)
+                    save_holdings(new_holdings)
+                    st.success("✅ Holdings updated and rebalancing recorded!")
+                    st.rerun()
+            
+            with col2:
+                new_total = sum(new_holdings.values())
+                st.metric("New Total", f"{new_total:,.0f} KRW")
     else:
         st.success("✅ Portfolio is well-balanced! No trades needed at this time.")
+    
+    # ═══════════════════════════════════════════════════════════════════════════
+    # SECTION 5: REBALANCING HISTORY
+    # ═══════════════════════════════════════════════════════════════════════════
+    st.divider()
+    st.header("📜 Section 5: Rebalancing History")
+    
+    rebalance_history = data.get('rebalance_history', [])
+    
+    if rebalance_history:
+        for idx, record in enumerate(reversed(rebalance_history[-5:])):  # Show last 5
+            with st.expander(f"📅 {record['date'][:10]} - {record.get('notes', 'No notes')}", expanded=False):
+                st.write(f"**Portfolio Value:** {record.get('portfolio_value_before', 0):,.0f} KRW")
+                st.write("**Trades Executed:**")
+                for trade in record.get('trades', []):
+                    icon = "📈" if trade['action'] == 'BUY' else "📉"
+                    st.write(f"  {icon} {trade['action']} {trade['asset']}: {trade['amount']:,.0f} KRW")
+    else:
+        st.info("No rebalancing history yet. Your first rebalancing will be recorded here.")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PAGE 3: PLAN REVISION (New)
