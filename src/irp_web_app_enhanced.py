@@ -495,6 +495,8 @@ def load_data():
             # Ensure holdings structure exists (for backward compatibility)
             if 'holdings' not in data:
                 data['holdings'] = get_default_holdings()
+            if 'holdings_values' not in data:
+                data['holdings_values'] = get_default_holdings_values()
             if 'holdings_updated' not in data:
                 data['holdings_updated'] = None
             if 'rebalance_history' not in data:
@@ -517,6 +519,7 @@ def load_data():
             'rsu_vesting': [],
             'rebalancing_history': [],
             'holdings': get_default_holdings(),
+            'holdings_values': get_default_holdings_values(),
             'holdings_updated': None,
             'rebalance_history': [],
             'transactions': [],
@@ -568,9 +571,17 @@ def get_default_holdings_values():
     }
 
 def save_holdings(holdings):
-    """Save updated holdings"""
+    """Save updated holdings (shares mode - calculated values)"""
     data = load_data()
     data['holdings'] = holdings
+    data['holdings_updated'] = datetime.now().isoformat()
+    save_data(data)
+    return True
+
+def save_holdings_values(holdings_values):
+    """Save updated holdings values (values mode - direct KRW entry)"""
+    data = load_data()
+    data['holdings_values'] = holdings_values
     data['holdings_updated'] = datetime.now().isoformat()
     save_data(data)
     return True
@@ -1172,7 +1183,8 @@ def page_rebalancing_alerts():
         # ═══════════════════════════════════════════════════════════════════════
         # VALUES MODE: Enter values directly (manual)
         # ═══════════════════════════════════════════════════════════════════════
-        holdings = data.get('holdings', get_default_holdings_values())
+        # Use separate storage for values mode to avoid confusion with shares
+        holdings = data.get('holdings_values', get_default_holdings_values())
         
         with st.expander("📝 Click to Update Your Current Holdings", expanded=False):
             st.write("Enter the current **value (in KRW)** of each asset in your portfolio:")
@@ -1193,7 +1205,7 @@ def page_rebalancing_alerts():
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("💾 Save Holdings", use_container_width=True, type="primary"):
-                    save_holdings(updated_holdings)
+                    save_holdings_values(updated_holdings)
                     st.success("✅ Holdings saved successfully!")
                     st.rerun()
             
