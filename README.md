@@ -11,7 +11,7 @@ A professional web application for tracking your Korean IRP (Individual Retireme
 - **Gains/Losses Analysis**: Calculate unrealized gains/losses based on cost basis (FIFO method)
 - **AI Recommendations**: Intelligent suggestions based on market conditions and your progress
 - **Automatic Price Tracking**: Real-time ETF prices via pykrx API (Korea Exchange data)
-- **Holdings Management**: Track by shares (auto-calculate values) or manual entry
+- **Holdings Management**: ETFs as shares (auto-calculate value), Cash as KRW
 - **Monthly Tracking**: Easy deposit entry and progress monitoring
 - **RSU Management**: Track your Keysight RSU vesting (4 tranches: 2027-2030)
 - **Projections**: Year-by-year balance projections to retirement
@@ -257,11 +257,19 @@ To add or modify ETFs, edit `data/etf_config.json`:
 
 Prices are automatically fetched from the Korea Exchange (KRX) using the `pykrx` library. If a ticker fails to fetch, the app uses fallback prices.
 
-### Holdings Mode
+### Holdings Input
 
-Two modes are available:
-- **Shares Mode**: Enter number of shares → prices fetched automatically
-- **Values Mode**: Enter KRW values directly (manual entry)
+Enter your holdings for accurate portfolio value calculation:
+
+| Asset Type | Input | Calculation |
+|------------|-------|-------------|
+| **ETFs** | Number of shares | Value = Shares × Live Price (from KRX API) |
+| **Cash** | KRW amount | Value = KRW amount (1:1) |
+
+This approach is more accurate because:
+- Share counts don't change (you own what you own)
+- Prices update automatically from Korea Exchange
+- Portfolio value = Σ (shares × current price)
 
 ### Transaction Tracking
 
