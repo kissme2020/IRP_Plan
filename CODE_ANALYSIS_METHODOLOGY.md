@@ -43,6 +43,10 @@ From the code structure, I found:
   ✓ Transaction tracking
   ✓ Gains/losses calculation (FIFO)
   ✓ Time-based rebalancing
+  ✓ Export for AI Review (portfolio snapshot with response format instructions)
+  ✓ Import AI Review (parse .md, apply allocation changes)
+  ✓ Data-driven allocation targets (loaded from JSON, editable via AI review)
+  ✓ Allocation history tracking (date, source, previous/new values)
 
 STEP 3: COMPARE TO README CLAIMS
 ─────────────────────────────────

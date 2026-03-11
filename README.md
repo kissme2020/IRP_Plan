@@ -15,6 +15,10 @@ A professional web application for tracking your Korean IRP (Individual Retireme
 - **Monthly Tracking**: Easy deposit entry and progress monitoring
 - **RSU Management**: Track your Keysight RSU vesting (4 tranches: 2027-2030)
 - **Projections**: Year-by-year balance projections to retirement
+- **Export for AI Review**: Generate portfolio snapshots for Claude/ChatGPT/Gemini with structured response format instructions
+- **Import AI Review**: Parse AI-generated .md files and apply recommended allocation changes
+- **Data-Driven Allocation**: Allocation targets stored in JSON, editable via AI review or manual reset
+- **Allocation History**: Track all allocation target changes over time with source and notes
 - **Professional Dashboard**: Beautiful visualizations with Plotly
 
 ## Your Numbers
@@ -163,11 +167,25 @@ To stop the app, press `Ctrl+C` in the terminal.
 - Alerts and recommendations based on progress
 - Current portfolio status
 
+### Export for AI Review
+- Generates a ready-to-paste markdown snapshot of your entire portfolio
+- Includes holdings, drift analysis, gains/losses, transaction history, and ETF reference
+- Contains **Response Format Instructions** that tell any AI to reply in our exact parseable format
+- Copy text → paste into Claude.ai / ChatGPT / Gemini → save response as .md
+
+### Import AI Review
+- Upload the AI's .md response file
+- Parser extracts: allocation table, CAGR assessment, key recommendations (HIGH/MEDIUM/LOW), market outlook
+- Side-by-side comparison of current vs recommended allocation
+- Fine-tune values before applying
+- One-click **Apply** to update allocation targets, or **Reset** to Option B defaults
+- View allocation change history
+
 ## Strategy Details
 
 ### Target Allocation (Option B - Moderate)
 
-This is what your portfolio should look like:
+Default allocation targets (can be updated via AI Review import):
 
 - **Growth Equities (42%)**
   - KODEX AI Core Power (28%)
@@ -212,6 +230,9 @@ This file contains:
 - RSU vesting records
 - Progress tracking
 - App settings
+- Custom allocation targets (updated via AI Review import)
+- Allocation change history (date, source, previous/new values)
+- AI review records
 
 **Important: Back up this file regularly!**
 
@@ -332,11 +353,15 @@ Configure automatic rebalancing alerts:
 
 ### Quarterly (Every 3 months):
 
-1. Full market review
-2. Check rebalancing alerts
-3. Review plan revision recommendations
-4. Execute any portfolio adjustments
-5. Update data backup
+1. Go to **Export for AI Review** → copy the snapshot
+2. Paste into [Claude.ai](https://claude.ai/new) (or ChatGPT/Gemini)
+3. Save the AI response as a `.md` file
+4. Go to **Import AI Review** → upload the file
+5. Review recommended allocation changes
+6. Click **Apply** to update targets
+7. Check **Rebalancing Alerts** for new trade recommendations
+8. Execute any portfolio adjustments
+9. Update data backup
 
 ### Annually (December):
 

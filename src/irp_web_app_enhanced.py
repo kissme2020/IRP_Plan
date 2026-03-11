@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import requests
 from functools import lru_cache
-from utils import krw_to_shares
+from utils import krw_to_shares, generate_portfolio_snapshot, parse_ai_review_md
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURATION & SETUP
@@ -48,8 +48,9 @@ IRP_CONFIG = {
     'rsu_after_tax_pct': 0.70,
 }
 
-# Target allocation (Option B - Moderate)
-ALLOCATION_TARGET = {
+# Target allocation (Option B - Moderate) — DEFAULT values
+# At runtime, use get_allocation_target() which checks irp_tracker_data.json first
+ALLOCATION_TARGET_DEFAULT = {
     'AI Core Power': 0.28,
     'AI Tech TOP10': 0.14,
     'Dividend Stocks': 0.10,
@@ -59,6 +60,7 @@ ALLOCATION_TARGET = {
     'Japan TOPIX': 0.02,
     'Cash': 0.28,
 }
+ALLOCATION_TARGET = ALLOCATION_TARGET_DEFAULT.copy()
 
 # ETF Ticker Configuration (loaded from JSON file)
 def load_etf_config():
@@ -611,6 +613,53 @@ def save_data(data):
     with open(data_file, 'w') as f:
         json.dump(data, f, indent=2, default=str)
 
+
+def load_allocation_target():
+    """Load allocation target from data file, falling back to defaults."""
+    global ALLOCATION_TARGET
+    data = load_data()
+    custom = data.get('allocation_target')
+    if custom and isinstance(custom, dict):
+        ALLOCATION_TARGET.update({k: v for k, v in custom.items() if k in ALLOCATION_TARGET})
+    return ALLOCATION_TARGET
+
+
+def save_allocation_target(new_target: dict, source: str = "manual", notes: str = ""):
+    """Save new allocation target and record it in history."""
+    global ALLOCATION_TARGET
+    data = load_data()
+
+    # Record history
+    if 'allocation_history' not in data:
+        data['allocation_history'] = []
+    data['allocation_history'].append({
+        'date': datetime.now().isoformat(),
+        'source': source,
+        'previous': dict(ALLOCATION_TARGET),
+        'new': new_target,
+        'notes': notes,
+    })
+
+    data['allocation_target'] = new_target
+    save_data(data)
+    ALLOCATION_TARGET.update(new_target)
+
+
+def save_ai_review(review_data: dict, filename: str):
+    """Save an AI review record in the data file."""
+    data = load_data()
+    if 'ai_reviews' not in data:
+        data['ai_reviews'] = []
+    data['ai_reviews'].append({
+        'date': datetime.now().isoformat(),
+        'filename': filename,
+        'allocation': review_data.get('allocation', {}),
+        'cagr': review_data.get('cagr', {}),
+        'recommendations': review_data.get('recommendations', []),
+    })
+    save_data(data)
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # TRANSACTION TRACKING (Purchase History)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -934,7 +983,7 @@ def page_market_dashboard():
         })
     
     df_markets = pd.DataFrame(market_data_list)
-    st.dataframe(df_markets, use_container_width=True, hide_index=True)
+    st.dataframe(df_markets, width="stretch", hide_index=True)
     
     st.divider()
     
@@ -1027,7 +1076,7 @@ def page_market_dashboard():
         ]
         
         df_vol = pd.DataFrame(volatility_data)
-        st.dataframe(df_vol, use_container_width=True, hide_index=True)
+        st.dataframe(df_vol, width="stretch", hide_index=True)
         
         st.write("### Recommended Action")
         
@@ -1099,7 +1148,7 @@ def page_rebalancing_alerts():
         
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("💾 Save Holdings", use_container_width=True, type="primary"):
+            if st.button("💾 Save Holdings", width="stretch", type="primary"):
                 data['shares'] = updated_shares
                 data['holdings_updated'] = datetime.now().isoformat()
                 save_data(data)
@@ -1108,7 +1157,7 @@ def page_rebalancing_alerts():
                 st.rerun()
         
         with col2:
-            if st.button("🔄 Refresh Prices", use_container_width=True):
+            if st.button("🔄 Refresh Prices", width="stretch"):
                 st.cache_data.clear()
                 st.rerun()
     
@@ -1133,7 +1182,7 @@ def page_rebalancing_alerts():
             })
     
     df_prices = pd.DataFrame(price_status_data)
-    st.dataframe(df_prices, use_container_width=True, hide_index=True)
+    st.dataframe(df_prices, width="stretch", hide_index=True)
     
     # Calculate holdings values from shares * prices
     holdings = {}
@@ -1178,7 +1227,7 @@ def page_rebalancing_alerts():
             })
     
     df_summary = pd.DataFrame(summary_data)
-    st.dataframe(df_summary, use_container_width=True, hide_index=True)
+    st.dataframe(df_summary, width="stretch", hide_index=True)
     
     st.metric("📊 Total Portfolio Value", f"₩{portfolio_value:,.0f} ({portfolio_value/1_000_000:.1f}M KRW)")
     
@@ -1283,7 +1332,7 @@ def page_rebalancing_alerts():
                     })
                 
                 df_trans = pd.DataFrame(trans_table)
-                st.dataframe(df_trans, use_container_width=True, hide_index=True)
+                st.dataframe(df_trans, width="stretch", hide_index=True)
                 
                 # Option to delete transaction
                 st.caption("To delete a transaction, enter its ID:")
@@ -1351,7 +1400,7 @@ def page_rebalancing_alerts():
         current_status_data.append(row_data)
     
     df_status = pd.DataFrame(current_status_data)
-    st.dataframe(df_status, use_container_width=True, hide_index=True)
+    st.dataframe(df_status, width="stretch", hide_index=True)
     
     # Visual comparison chart
     st.subheader("Current vs Target Allocation")
@@ -1374,7 +1423,7 @@ def page_rebalancing_alerts():
                  title='Current vs Target Allocation (%)',
                  color_discrete_map={'Current': '#1f77b4', 'Target': '#2ca02c'})
     fig.update_layout(xaxis_tickangle=-45)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
     
     st.divider()
     
@@ -1430,7 +1479,7 @@ def page_rebalancing_alerts():
                 })
             
             df_gains = pd.DataFrame(gains_table)
-            st.dataframe(df_gains, use_container_width=True, hide_index=True)
+            st.dataframe(df_gains, width="stretch", hide_index=True)
     else:
         st.info("💡 No transaction history recorded yet. Add your purchase history to see gains/losses analysis.")
         st.caption("Go to 'Transaction History' section below to record your buy/sell transactions.")
@@ -1549,7 +1598,7 @@ def page_rebalancing_alerts():
         if abs(difference) > 500_000:  # Only if > 500K difference
             asset_price = prices.get(asset, {}).get('price', 0)
             if difference > 0:
-                shares_to_trade = krw_to_shares(abs(difference), asset_price, action="buy") if asset != 'Cash' else '-'
+                shares_to_trade = str(krw_to_shares(abs(difference), asset_price, action="buy")) if asset != 'Cash' else '-'
                 trades_buy.append({
                     'Asset': asset,
                     'Current Value': f"{current_value:,.0f}",
@@ -1560,7 +1609,7 @@ def page_rebalancing_alerts():
                 })
                 total_buy += abs(difference)
             else:
-                shares_to_trade = krw_to_shares(abs(difference), asset_price, action="sell") if asset != 'Cash' else '-'
+                shares_to_trade = str(krw_to_shares(abs(difference), asset_price, action="sell")) if asset != 'Cash' else '-'
                 trades_sell.append({
                     'Asset': asset,
                     'Current Value': f"{current_value:,.0f}",
@@ -1575,7 +1624,9 @@ def page_rebalancing_alerts():
     if trades_sell:
         st.subheader("📉 Step 1: SELL These Assets (Do First)")
         df_sell = pd.DataFrame([{k: v for k, v in t.items() if not k.startswith('_')} for t in trades_sell])
-        st.dataframe(df_sell, use_container_width=True, hide_index=True)
+        if 'Shares to SELL' in df_sell.columns:
+            df_sell['Shares to SELL'] = df_sell['Shares to SELL'].astype(str)
+        st.dataframe(df_sell, width="stretch", hide_index=True)
         st.metric("Total to Sell", f"{total_sell:,.0f} KRW")
     else:
         st.info("No assets need to be sold.")
@@ -1586,7 +1637,9 @@ def page_rebalancing_alerts():
     if trades_buy:
         st.subheader("📈 Step 2: BUY These Assets (Do Second)")
         df_buy = pd.DataFrame([{k: v for k, v in t.items() if not k.startswith('_')} for t in trades_buy])
-        st.dataframe(df_buy, use_container_width=True, hide_index=True)
+        if 'Shares to BUY' in df_buy.columns:
+            df_buy['Shares to BUY'] = df_buy['Shares to BUY'].astype(str)
+        st.dataframe(df_buy, width="stretch", hide_index=True)
         st.metric("Total to Buy", f"{total_buy:,.0f} KRW")
     else:
         st.info("No assets need to be bought.")
@@ -1645,7 +1698,7 @@ def page_rebalancing_alerts():
             
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("💾 Save New Holdings & Record Rebalance", use_container_width=True, type="primary"):
+                if st.button("💾 Save New Holdings & Record Rebalance", width="stretch", type="primary"):
                     # Record the trades
                     all_trades = []
                     for t in trades_sell:
@@ -1863,12 +1916,277 @@ def page_plan_revision():
         Time is more valuable than safety right now.
         """)
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PAGE: EXPORT FOR AI REVIEW
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def page_export_snapshot():
+    """Generate portfolio snapshot for AI review"""
+    st.title("📋 Export for AI Review")
+
+    st.markdown("""
+    Generate a **ready-to-paste markdown snapshot** of your portfolio for Claude Web or other AI tools.
+    Use this for **quarterly strategic reviews** aligned with your 90-day rebalancing cycle.
+    """)
+
+    data = load_data()
+    progress = calculate_progress(data)
+    shares = data.get('shares', get_default_holdings())
+    years_remaining, _, _ = calculate_time_remaining()
+
+    with st.spinner("Fetching live prices from KRX..."):
+        prices = fetch_etf_prices()
+
+    # Calculate holdings values
+    holdings = {}
+    for asset in ALLOCATION_TARGET:
+        num_shares = shares.get(asset, 0)
+        price = prices.get(asset, {}).get('price', 0)
+        holdings[asset] = num_shares if asset == 'Cash' else num_shares * price
+
+    portfolio_value = sum(holdings.values())
+
+    # Build current_prices dict for gains/losses
+    current_prices = {}
+    for asset in ALLOCATION_TARGET:
+        if asset == 'Cash':
+            current_prices[asset] = 1
+        else:
+            current_prices[asset] = prices.get(asset, {}).get('price', 0)
+
+    gains_losses, total_gain, total_gain_pct = calculate_gains_losses(current_prices)
+    transactions = get_transactions()
+
+    snapshot = generate_portfolio_snapshot(
+        holdings=holdings,
+        prices=prices,
+        allocation_target=ALLOCATION_TARGET,
+        portfolio_value=portfolio_value,
+        progress=progress,
+        years_remaining=years_remaining,
+        transactions=transactions,
+        gains_losses=gains_losses,
+        total_gain=total_gain,
+        total_gain_pct=total_gain_pct,
+        etf_config=ETF_CONFIG,
+    )
+
+    # Preview
+    st.subheader("📄 Snapshot Preview")
+    with st.expander("Click to preview rendered snapshot", expanded=True):
+        st.markdown(snapshot)
+
+    # Copyable text
+    st.subheader("📑 Copy This Text")
+    st.text_area(
+        "Select all and copy (Ctrl+A, Ctrl+C):",
+        value=snapshot,
+        height=500,
+        key="snapshot_text",
+    )
+
+    st.info("""
+    **How to use:**
+    1. Copy the text above
+    2. Open [Claude Web](https://claude.ai) (or another AI)
+    3. Paste the snapshot and ask for a quarterly review
+    4. Review the AI's recommendations before making changes
+    5. Save the AI response as a .md file
+    6. Import it using the **Import AI Review** page
+    """)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PAGE: IMPORT AI REVIEW
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def page_import_ai_review():
+    """Import and apply AI review recommendations"""
+    st.title("📥 Import AI Review")
+
+    st.markdown("""
+    Upload the **.md file** you received from Claude Web (or another AI).
+    The app will parse the recommended allocation and let you apply it.
+    """)
+
+    uploaded = st.file_uploader(
+        "Upload AI Review (.md file)",
+        type=["md", "txt", "markdown"],
+        key="ai_review_upload",
+    )
+
+    if uploaded is None:
+        st.info("👆 Upload an AI review markdown file to get started.")
+
+        # Show review history
+        data = load_data()
+        history = data.get('allocation_history', [])
+        if history:
+            st.divider()
+            st.subheader("📜 Allocation Change History")
+            for entry in reversed(history[-10:]):
+                date_str = entry['date'][:10]
+                source = entry.get('source', 'unknown')
+                with st.expander(f"{date_str} — via {source}"):
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write("**Previous**")
+                        for asset, pct in entry.get('previous', {}).items():
+                            st.write(f"  {asset}: {pct*100:.0f}%")
+                    with col2:
+                        st.write("**New**")
+                        for asset, pct in entry.get('new', {}).items():
+                            st.write(f"  {asset}: {pct*100:.0f}%")
+                    if entry.get('notes'):
+                        st.caption(entry['notes'])
+        return
+
+    # ── Parse the uploaded file ──
+    content = uploaded.read().decode("utf-8")
+    review = parse_ai_review_md(content)
+
+    # ── Show parsed results ──
+    st.divider()
+
+    # 1) Allocation comparison
+    if review["allocation"]:
+        st.subheader("📊 Recommended Allocation Changes")
+
+        comparison_rows = []
+        valid_assets = {}
+        for asset_name, info in review["allocation"].items():
+            # Match to our known asset names
+            matched_key = None
+            for key in ALLOCATION_TARGET:
+                if key.lower() == asset_name.lower():
+                    matched_key = key
+                    break
+            if not matched_key:
+                continue
+
+            current_target = ALLOCATION_TARGET[matched_key] * 100
+            recommended = info["recommended"]
+            change = recommended - current_target
+            valid_assets[matched_key] = recommended
+
+            comparison_rows.append({
+                "Asset": matched_key,
+                "Current Target %": f"{current_target:.0f}%",
+                "Recommended %": f"{recommended:.0f}%",
+                "Change": f"{change:+.0f}%",
+                "Action": info.get("action", ""),
+                "Reason": info.get("reason", ""),
+            })
+
+        if comparison_rows:
+            df = pd.DataFrame(comparison_rows)
+            st.dataframe(df, width="stretch", hide_index=True)
+
+            # Validation
+            total_pct = sum(valid_assets.values())
+            if abs(total_pct - 100) > 1:
+                st.warning(f"⚠️ Recommended allocations sum to {total_pct:.0f}% (should be 100%). Adjust before applying.")
+            else:
+                st.success(f"✅ Allocations sum to {total_pct:.0f}%")
+        else:
+            st.warning("Could not match any asset names from the review. Check the file format.")
+    else:
+        st.warning("⚠️ No 'Recommended Allocation' table found. Make sure the file follows the template.")
+        with st.expander("Show raw file content"):
+            st.code(content[:3000])
+        return
+
+    # 2) CAGR Assessment
+    if review["cagr"].get("recommended"):
+        st.subheader("📈 CAGR Assessment")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Current CAGR", f"{review['cagr']['current']}%")
+        with col2:
+            delta = review['cagr']['recommended'] - (review['cagr']['current'] or 0)
+            st.metric("Recommended CAGR", f"{review['cagr']['recommended']}%",
+                      delta=f"{delta:+.1f}%")
+        if review['cagr']['reason']:
+            st.caption(f"Reason: {review['cagr']['reason']}")
+
+    # 3) Key Recommendations
+    if review["recommendations"]:
+        st.subheader("🎯 Key Recommendations")
+        for rec in review["recommendations"]:
+            if rec.upper().startswith("HIGH"):
+                st.error(f"🔴 {rec}")
+            elif rec.upper().startswith("MEDIUM"):
+                st.warning(f"🟡 {rec}")
+            else:
+                st.info(f"🔵 {rec}")
+
+    # 4) Market Outlook
+    if review["market_outlook"]:
+        st.subheader("🌍 Market Outlook")
+        st.markdown(review["market_outlook"])
+
+    # ── Apply button ──
+    if valid_assets:
+        st.divider()
+        st.subheader("✅ Apply Changes")
+
+        st.write("Review the comparison above. Click below to update your allocation targets.")
+
+        # Allow manual adjustment before applying
+        with st.expander("🔧 Fine-tune before applying (optional)"):
+            adjusted = {}
+            cols = st.columns(2)
+            for idx, (asset, pct) in enumerate(valid_assets.items()):
+                with cols[idx % 2]:
+                    adjusted[asset] = st.number_input(
+                        f"{asset} %",
+                        min_value=0.0,
+                        max_value=100.0,
+                        value=float(pct),
+                        step=1.0,
+                        key=f"adjust_{asset}",
+                    )
+
+            adj_total = sum(adjusted.values())
+            if abs(adj_total - 100) > 1:
+                st.warning(f"Total: {adj_total:.0f}% — must be ~100%")
+            else:
+                st.success(f"Total: {adj_total:.0f}%")
+                valid_assets = adjusted
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🚀 Apply Recommended Allocation", type="primary", width="stretch"):
+                new_target = {asset: pct / 100.0 for asset, pct in valid_assets.items()}
+                notes = f"From AI review: {uploaded.name}"
+                if review["recommendations"]:
+                    notes += " | " + "; ".join(review["recommendations"][:3])
+                save_allocation_target(new_target, source="ai_review", notes=notes)
+                save_ai_review(review, uploaded.name)
+                st.success("✅ Allocation targets updated! Go to **Rebalancing Alerts** to see new trade recommendations.")
+                st.balloons()
+
+        with col2:
+            if st.button("🔄 Reset to Default (Option B)", width="stretch"):
+                save_allocation_target(
+                    dict(ALLOCATION_TARGET_DEFAULT),
+                    source="reset",
+                    notes="Reset to Option B defaults",
+                )
+                st.success("✅ Reset to default Option B allocation.")
+                st.rerun()
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # MAIN APP (All Original Pages + 3 New Pages)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def main():
     """Main application"""
+    
+    # Load custom allocation targets (if any)
+    load_allocation_target()
     
     # Sidebar navigation
     st.sidebar.title("IRP Tracker Pro")
@@ -1877,6 +2195,8 @@ def main():
         "Market Dashboard",
         "Rebalancing Alerts",
         "Plan Revision",
+        "Export for AI Review",
+        "Import AI Review",
         "Original Dashboard",
         "Track Deposits",
         "RSU Tracking",
@@ -1915,6 +2235,10 @@ def main():
         page_rebalancing_alerts()
     elif page == "Plan Revision":
         page_plan_revision()
+    elif page == "Export for AI Review":
+        page_export_snapshot()
+    elif page == "Import AI Review":
+        page_import_ai_review()
     # Note: Original pages would go here (condensed for space)
     else:
         st.write("# Original Pages")

@@ -24,6 +24,11 @@ ALLOCATION_TARGET = {
 }
 ```
 
+**NOTE:** These are the default Option B values. Allocation targets are now
+**data-driven** — custom targets can be saved to `irp_tracker_data.json` via
+the Import AI Review page and are loaded at startup by `load_allocation_target()`.
+The defaults above serve as a fallback when no custom target exists.
+
 What this does:
   ├─ Defines your TARGET allocation (100% total)
   ├─ 8 asset classes with percentages
@@ -402,11 +407,16 @@ FEATURES IMPLEMENTED:
   ✅ Priority ranking (HIGH >10%, MEDIUM 5-10%)
   ✅ Specific recommendations (which asset, how much)
   ✅ Shares-based trade display (KRW → shares via krw_to_shares in utils.py)
+  ✅ Arrow serialization fix (mixed int/str columns cast to str for Streamlit)
   ✅ Time-based scheduling (every 90 days)
   ✅ History tracking (all past rebalancing)
   ✅ AI integration (smart recommendations)
-  ✅ UI display (beautiful, interactive)
+  ✅ UI display (beautiful, interactive, width="stretch")
   ✅ Settings management (customizable)
+  ✅ Data-driven allocation targets (loaded from JSON at startup)
+  ✅ Export for AI Review (portfolio snapshot with response format instructions)
+  ✅ Import AI Review (parse .md files, apply allocation changes)
+  ✅ Allocation history tracking (date, source, previous/new values)
 
 ═══════════════════════════════════════════════════════════════════════════════
 VERIFICATION: DOES YOUR APP HAVE THIS?
