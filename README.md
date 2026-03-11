@@ -178,7 +178,7 @@ This is what your portfolio should look like:
   - KODEX Consumer Staples (8%)
   
 - **Bonds (11%)**
-  - KODEX Treasury 20+ Year Bond
+  - KODEX US 30Y Treasury Active (H)
   
 - **Cash (28%)**
   - Flexible buffer for bonuses and opportunities
@@ -237,7 +237,7 @@ ETF configuration is stored in `data/etf_config.json` for easy maintenance. The 
 | AI Tech TOP10 | KODEX 미국AI테크TOP10타겟커버드콜 | 483280 | Growth |
 | Dividend Stocks | KODEX 미국배당다우존스 | 489250 | Defensive |
 | Consumer Staples | KODEX 미국S&P500필수소비재 | 453630 | Defensive |
-| Treasury Bonds | KODEX 미국채30년프리미엄(합성 H) | 484790 | Bonds |
+| Treasury Bonds | KODEX 미국30년국채액티브(H) | 484790 | Bonds |
 | Gold | KODEX 골드선물(H) | 132030 | Safe Haven |
 | Japan TOPIX | KODEX 일본TOPIX100 | 101280 | International |
 

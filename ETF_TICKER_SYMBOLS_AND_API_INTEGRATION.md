@@ -69,7 +69,7 @@ FUND NAME                                    CODE      TYPE
    └─ Defensive US consumer stocks
    └─ Samsung Fund code: 453630
 
-5. KODEX Treasury 20+ Year Bond Active H     484790    Korea Bond ETF
+5. KODEX US 30Y Treasury Active (H)           484790    Korea Bond ETF
    └─ Long-term US Treasury bonds
    └─ Samsung Fund code: 484790
 
@@ -336,7 +336,7 @@ KODEX AI Core Power                  457930          ✓ Use this code
 KODEX AI Tech TOP10 Target CC        412650          ✓ Use this code
 KODEX US Dividend (Dow Jones)        489250          ✓ Use this code
 KODEX S&P 500 Consumer Staples       453630          ✓ Use this code
-KODEX Treasury 20+ Year Bond         484790          ✓ Use this code
+KODEX US 30Y Treasury Active (H)     484790          ✓ Use this code
 ACE KRX Gold                         (Find on site)  ✓ Search Samsung Fund
 KODEX Japan TOPIX100                 (Find on site)  ✓ Search Samsung Fund
 

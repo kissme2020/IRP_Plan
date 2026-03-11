@@ -29,10 +29,10 @@
     },
     "Treasury Bonds": {
         "code": "484790",
-        "name": "KODEX Treasury 20+ Year Bond Active H",
-        "name_kr": "KODEX 미국채30년프리미엄(합성 H)",
+        "name": "KODEX US 30Y Treasury Active (H)",
+        "name_kr": "KODEX 미국30년국채액티브(H)",
         "type": "Bond",
-        "description": "Long-term US Treasury bonds"
+        "description": "Long-term US Treasury bonds, monthly dividend, hedged"
     },
     "Gold": {
         "code": "132030",

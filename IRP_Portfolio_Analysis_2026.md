@@ -218,7 +218,7 @@ With 5 years to retirement, your goal should shift from "maximize growth" to "se
   - Only if comfort with active management
 
 **Fixed Income (Hedge)**
-- **KODEX Treasury 20+ Year Bond Active H (484790)** ✓ RECOMMENDED
+- **KODEX US 30Y Treasury Active (H) (484790)** ✓ RECOMMENDED
   - Dividend Yield: 4.86% (current, high due to rate environment)
   - Duration: Long (20+ year bonds = high sensitivity to rate cuts)
   - Risk: Rate-sensitive but protective in recession
