@@ -36,6 +36,7 @@ A professional web application for tracking your Korean IRP (Individual Retireme
 ```
 c:/Users/tskdkim/Projects/IPR_Plan/
 ├── README.md                           # This file
+├── QUICK_REFERENCE.md                  # Quick reference for running & using the app
 ├── .gitignore                          # Git ignore file
 ├── requirements.txt                    # Python dependencies
 ├── src/                                # Source code
@@ -506,8 +507,9 @@ pip install -r requirements.txt
 
 For help or questions:
 
-1. **Error messages**: Read carefully - they tell you what's wrong
-2. **Documentation**: Check SETUP guides provided
+1. **Quick Reference**: See [QUICK_REFERENCE.md](QUICK_REFERENCE.md) for common commands and workflows
+2. **Error messages**: Read carefully - they tell you what's wrong
+3. **Documentation**: Check SETUP guides provided
 3. **Streamlit docs**: https://docs.streamlit.io/
 4. **Python docs**: https://docs.python.org/3.11/
 5. **Search**: Google the error message (likely someone solved it)
@@ -525,8 +527,9 @@ For help or questions:
 ## Version History
 
 - **v1.0** (March 2026): Initial setup and deployment
+- **v1.1** (March 2026): Added QUICK_REFERENCE.md
 - **Status**: Active monitoring (March 2026 - December 2030)
-- **Last Update**: March 10, 2026
+- **Last Update**: March 12, 2026
 
 ---
 
