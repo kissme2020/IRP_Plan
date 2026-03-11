@@ -1644,10 +1644,12 @@ def page_rebalancing_alerts():
         
         if abs(difference) > 500_000:  # Only if > 500K difference
             asset_price = prices.get(asset, {}).get('price', 0)
+            etf_code = ETF_CONFIG.get(asset, {}).get('code', '')
+            asset_label = f"{asset} [{etf_code}]" if etf_code else asset
             if difference > 0:
                 shares_to_trade = str(krw_to_shares(abs(difference), asset_price, action="buy")) if asset != 'Cash' else '-'
                 trades_buy.append({
-                    'Asset': asset,
+                    'Asset': asset_label,
                     'Current Value': f"{current_value:,.0f}",
                     'Target Value': f"{target_value:,.0f}",
                     'Amount (KRW)': f"{abs(difference):,.0f}",
@@ -1658,7 +1660,7 @@ def page_rebalancing_alerts():
             else:
                 shares_to_trade = str(krw_to_shares(abs(difference), asset_price, action="sell")) if asset != 'Cash' else '-'
                 trades_sell.append({
-                    'Asset': asset,
+                    'Asset': asset_label,
                     'Current Value': f"{current_value:,.0f}",
                     'Target Value': f"{target_value:,.0f}",
                     'Amount (KRW)': f"{abs(difference):,.0f}",

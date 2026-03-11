@@ -368,6 +368,7 @@ USER JOURNEY - HOW REBALANCING ALERTS WORK:
 7. GENERATE RECOMMENDATIONS
    └─ Which assets to BUY (underweight)
    └─ Which assets to SELL (overweight)
+   └─ Asset column shows ETF name + ticker code (e.g., "AI Core Power [457930]")
    └─ How much to move (KRW amount)
    └─ How many shares (via krw_to_shares: floor for sell, ceil for buy)
    └─ Priority order
