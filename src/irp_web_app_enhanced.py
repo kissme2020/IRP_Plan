@@ -21,6 +21,7 @@ import numpy as np
 import requests
 from functools import lru_cache
 from utils import krw_to_shares, generate_portfolio_snapshot, parse_ai_review_md
+from market_data import fetch_market_data, get_usd_krw, MARKET_INDICES
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURATION & SETUP
@@ -187,84 +188,12 @@ def calculate_holdings_value(shares, prices):
 # MARKET DATA FUNCTIONS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@st.cache_data(ttl=3600)  # Cache for 1 hour
 def get_market_data():
-    """Fetch current market data"""
-    market_data = {
-        'timestamp': datetime.now(),
-        'status': 'success',
-        'data': {}
-    }
-    
-    try:
-        # Try to fetch real market data from APIs
-        # Using multiple sources for reliability
-        
-        # Alpha Vantage for US Market data
-        api_key = "demo"  # Use demo key (rate limited but free)
-        
-        markets = {
-            'S&P 500': {
-                'symbol': 'GSPC',
-                'description': 'S&P 500 Index',
-                'benchmark': True
-            },
-            'NASDAQ': {
-                'symbol': 'CCMP',
-                'description': 'NASDAQ Composite',
-                'tech_heavy': True
-            },
-            'AI Tech ETF (QQQ)': {
-                'symbol': 'QQQ',
-                'description': 'Invesco QQQ Trust (Tech/AI Heavy)',
-                'ai_exposure': True
-            },
-            'Korean Kospi': {
-                'symbol': 'KS11',
-                'description': 'Korea Composite Stock Price Index',
-                'local': True
-            }
-        }
-        
-        # Use mock data if API fails (realistic market values)
-        market_data['data'] = {
-            'S&P 500': {
-                'price': 5850.0,
-                'change_percent': 8.2,
-                'change_amount': 450.0,
-                'status': 'real_time'
-            },
-            'NASDAQ': {
-                'price': 18650.0,
-                'change_percent': 12.5,
-                'change_amount': 2300.0,
-                'status': 'real_time'
-            },
-            'AI Tech ETF': {
-                'price': 450.0,
-                'change_percent': 28.3,
-                'change_amount': 125.0,
-                'status': 'real_time'
-            },
-            'Korean KOSPI': {
-                'price': 2850.0,
-                'change_percent': -2.5,
-                'change_amount': -75.0,
-                'status': 'real_time'
-            }
-        }
-        
-    except Exception as e:
-        # Fallback to mock data
-        market_data['status'] = 'offline'
-        market_data['data'] = {
-            'S&P 500': {'price': 5850.0, 'change_percent': 8.2, 'status': 'mock'},
-            'NASDAQ': {'price': 18650.0, 'change_percent': 12.5, 'status': 'mock'},
-            'AI Tech ETF': {'price': 450.0, 'change_percent': 28.3, 'status': 'mock'},
-            'Korean KOSPI': {'price': 2850.0, 'change_percent': -2.5, 'status': 'mock'},
-        }
-    
-    return market_data
+    """Fetch market data via hybrid approach (real API + cache + fallback).
+    Delegates to market_data.fetch_market_data() which uses yfinance with
+    Streamlit caching (10 min TTL) and mock fallback if API fails.
+    """
+    return fetch_market_data()
 
 def get_market_trend_analysis(market_data):
     """Analyze market trends and provide assessment"""
@@ -282,36 +211,54 @@ def get_market_trend_analysis(market_data):
         'confidence': 'MEDIUM',
     }
     
-    # Analyze trends
-    avg_change = np.mean([d['change_percent'] for d in data.values()])
+    # Analyze equity trends (US + Korea indices)
+    equity_names = ['S&P 500', 'NASDAQ', 'Dow Jones', 'KOSPI', 'KOSDAQ']
+    equity_changes = [data[n]['change_pct'] for n in equity_names if n in data]
+    avg_change = np.mean(equity_changes) if equity_changes else 0
     
-    if avg_change > 10:
+    if avg_change > 2:
         analysis['trend'] = 'BULLISH'
         analysis['sentiment'] = 'POSITIVE'
-    elif avg_change < -5:
+    elif avg_change < -2:
         analysis['trend'] = 'BEARISH'
         analysis['sentiment'] = 'NEGATIVE'
     else:
         analysis['trend'] = 'NEUTRAL'
         analysis['sentiment'] = 'MIXED'
     
-    # AI sector analysis
-    if data.get('AI Tech ETF', {}).get('change_percent', 0) > 20:
+    # Volatility from VIX
+    vix = data.get('VIX', {}).get('price', 18)
+    if vix > 30:
+        analysis['volatility'] = 'HIGH'
+    elif vix > 20:
+        analysis['volatility'] = 'ELEVATED'
+    else:
+        analysis['volatility'] = 'LOW'
+    
+    # Tech sector analysis (NASDAQ as proxy)
+    nasdaq_change = data.get('NASDAQ', {}).get('change_pct', 0)
+    if nasdaq_change > 2:
+        analysis['tech_sector'] = 'VERY STRONG'
         analysis['ai_sector'] = 'VERY STRONG'
         analysis['confidence'] = 'HIGH'
-    elif data.get('AI Tech ETF', {}).get('change_percent', 0) > 10:
-        analysis['ai_sector'] = 'STRONG'
-    elif data.get('AI Tech ETF', {}).get('change_percent', 0) < 0:
-        analysis['ai_sector'] = 'WEAK'
-    
-    # Tech sector analysis
-    nasdaq_change = data.get('NASDAQ', {}).get('change_percent', 0)
-    if nasdaq_change > 15:
-        analysis['tech_sector'] = 'VERY STRONG'
-    elif nasdaq_change > 5:
+    elif nasdaq_change > 0:
         analysis['tech_sector'] = 'STRONG'
+        analysis['ai_sector'] = 'STRONG'
+    elif nasdaq_change < -2:
+        analysis['tech_sector'] = 'WEAK'
+        analysis['ai_sector'] = 'WEAK'
     else:
         analysis['tech_sector'] = 'MODERATE'
+        analysis['ai_sector'] = 'MODERATE'
+    
+    # Bond outlook from US 10Y Yield
+    yield_10y = data.get('US 10Y Yield', {}).get('price', 4.0)
+    if yield_10y > 5.0:
+        analysis['bond_outlook'] = 'UNFAVORABLE'
+    elif yield_10y > 4.5:
+        analysis['bond_outlook'] = 'CAUTIOUS'
+    else:
+        analysis['bond_outlook'] = 'FAVORABLE'
     
     return analysis
 
@@ -670,7 +617,7 @@ def generate_transaction_id():
     return str(uuid.uuid4())[:8]
 
 def add_transaction(asset, trans_type, date_str, shares, price_per_share, notes=""):
-    """Add a buy or sell transaction"""
+    """Add a transaction (buy, sell, contribution, or dividend)"""
     data = load_data()
     
     if 'transactions' not in data:
@@ -679,7 +626,7 @@ def add_transaction(asset, trans_type, date_str, shares, price_per_share, notes=
     transaction = {
         'id': generate_transaction_id(),
         'asset': asset,
-        'type': trans_type,  # 'buy' or 'sell'
+        'type': trans_type,  # 'buy', 'sell', 'contribution', 'dividend'
         'date': date_str,
         'shares': shares,
         'price_per_share': price_per_share,
@@ -970,16 +917,56 @@ def page_market_dashboard():
     
     st.divider()
     
-    # Market Indices
+    # Market Indices — grouped by category
     st.subheader("Market Indices")
     
+    # Data source indicator
+    status = market_data.get('status', 'unknown')
+    ts = market_data.get('timestamp')
+    if status == 'live':
+        st.caption(f"🟢 Live data via Yahoo Finance • Updated {ts.strftime('%Y-%m-%d %H:%M') if ts else 'N/A'} • Cached 10 min")
+    elif status == 'offline':
+        st.caption("🔴 Offline — showing fallback data. Check your internet connection.")
+    
+    # USD/KRW exchange rate — highlighted card
+    usd_krw = market_data['data'].get('USD/KRW', {})
+    if usd_krw:
+        krw_col1, krw_col2, krw_col3 = st.columns([2, 1, 1])
+        with krw_col1:
+            st.metric(
+                "💱 USD/KRW Exchange Rate",
+                f"₩{usd_krw['price']:,.2f}",
+                f"{usd_krw['change_pct']:+.2f}%"
+            )
+        with krw_col2:
+            st.metric("Previous Close", f"₩{usd_krw.get('prev_close', 0):,.2f}")
+        with krw_col3:
+            st.metric("Change", f"₩{usd_krw.get('change_amt', 0):+,.2f}")
+        st.divider()
+    
+    # Build table for all indices
     market_data_list = []
-    for market, info in market_data['data'].items():
+    for name, info in market_data['data'].items():
+        price = info['price']
+        # Format price based on category
+        if info.get('category') == 'Currency':
+            price_fmt = f"₩{price:,.2f}"
+        elif info.get('category') == 'Bond':
+            price_fmt = f"{price:.2f}%"
+        else:
+            price_fmt = f"{price:,.2f}"
+        
+        change = info.get('change_pct', 0)
+        source = info.get('source', '')
+        source_icon = '🟢' if source == 'yahoo_finance' else '🟡' if source == 'fallback' else '🔴'
+        
         market_data_list.append({
-            'Market': market,
-            'Price': f"{info['price']:,.2f}",
-            'Change %': f"{info['change_percent']:+.2f}%",
-            'Status': '📈 Up' if info['change_percent'] > 0 else '📉 Down'
+            'Category': info.get('category', ''),
+            'Index': name,
+            'Price': price_fmt,
+            'Change %': f"{change:+.2f}%",
+            'Trend': '📈' if change > 0 else '📉' if change < 0 else '➡️',
+            'Source': source_icon,
         })
     
     df_markets = pd.DataFrame(market_data_list)
@@ -1237,26 +1224,45 @@ def page_rebalancing_alerts():
     # SECTION 0.5: TRANSACTION HISTORY (Purchase/Sale Tracking)
     # ═══════════════════════════════════════════════════════════════════════════
     st.header("💳 Section 0.5: Transaction History")
-    st.caption("Track your buy/sell transactions to calculate accurate gains/losses")
+    st.caption("Track buy/sell transactions, employer contributions, and ETF dividends")
     
     # Add new transaction
     with st.expander("➕ Add New Transaction", expanded=False):
         col1, col2, col3 = st.columns(3)
         
-        with col1:
-            trans_asset = st.selectbox(
-                "Asset",
-                options=[a for a in ALLOCATION_TARGET.keys() if a != 'Cash'],
-                key="trans_asset"
-            )
+        TRANS_TYPE_LABELS = {
+            'buy': '🟢 Buy',
+            'sell': '🔴 Sell',
+            'contribution': '💰 Employer Contribution',
+            'dividend': '📊 ETF Dividend',
+        }
         
         with col2:
             trans_type = st.selectbox(
                 "Transaction Type",
-                options=['buy', 'sell'],
-                format_func=lambda x: '🟢 Buy' if x == 'buy' else '🔴 Sell',
+                options=['buy', 'sell', 'contribution', 'dividend'],
+                format_func=lambda x: TRANS_TYPE_LABELS[x],
                 key="trans_type"
             )
+        
+        is_cash_type = trans_type in ('contribution', 'dividend')
+        
+        with col1:
+            if is_cash_type and trans_type == 'contribution':
+                trans_asset = 'Cash'
+                st.text_input("Asset", value="Cash (IRP Account)", disabled=True, key="trans_asset_display")
+            elif is_cash_type and trans_type == 'dividend':
+                trans_asset = st.selectbox(
+                    "Source Asset",
+                    options=[a for a in ALLOCATION_TARGET.keys() if a != 'Cash'],
+                    key="trans_asset_div"
+                )
+            else:
+                trans_asset = st.selectbox(
+                    "Asset",
+                    options=[a for a in ALLOCATION_TARGET.keys() if a != 'Cash'],
+                    key="trans_asset"
+                )
         
         with col3:
             trans_date = st.date_input(
@@ -1265,29 +1271,41 @@ def page_rebalancing_alerts():
                 key="trans_date"
             )
         
-        col4, col5, col6 = st.columns(3)
-        
-        with col4:
-            trans_shares = st.number_input(
-                "Number of Shares",
-                min_value=1,
-                value=10,
-                step=1,
-                key="trans_shares"
-            )
-        
-        with col5:
-            trans_price = st.number_input(
-                "Price per Share (KRW)",
-                min_value=1,
-                value=10000,
-                step=100,
-                key="trans_price"
-            )
-        
-        with col6:
-            trans_total = trans_shares * trans_price
-            st.metric("Total Amount", f"₩{trans_total:,.0f}")
+        if is_cash_type:
+            col4, col5 = st.columns([2, 1])
+            with col4:
+                trans_amount = st.number_input(
+                    "Amount (KRW)",
+                    min_value=1,
+                    value=600000 if trans_type == 'contribution' else 10000,
+                    step=10000,
+                    key="trans_amount"
+                )
+            with col5:
+                st.metric("Total Amount", f"₩{trans_amount:,.0f}")
+            trans_shares = 0
+            trans_price = trans_amount
+        else:
+            col4, col5, col6 = st.columns(3)
+            with col4:
+                trans_shares = st.number_input(
+                    "Number of Shares",
+                    min_value=1,
+                    value=10,
+                    step=1,
+                    key="trans_shares"
+                )
+            with col5:
+                trans_price = st.number_input(
+                    "Price per Share (KRW)",
+                    min_value=1,
+                    value=10000,
+                    step=100,
+                    key="trans_price"
+                )
+            with col6:
+                trans_total = trans_shares * trans_price
+                st.metric("Total Amount", f"₩{trans_total:,.0f}")
         
         trans_notes = st.text_input("Notes (optional)", key="trans_notes")
         
@@ -1300,7 +1318,11 @@ def page_rebalancing_alerts():
                 price_per_share=trans_price,
                 notes=trans_notes
             )
-            st.success(f"✅ Transaction recorded: {trans_type.upper()} {trans_shares} shares of {trans_asset}")
+            if is_cash_type:
+                label = "Employer Contribution" if trans_type == 'contribution' else f"ETF Dividend from {trans_asset}"
+                st.success(f"✅ Recorded: {label} — ₩{trans_price:,.0f}")
+            else:
+                st.success(f"✅ Transaction recorded: {trans_type.upper()} {trans_shares} shares of {trans_asset}")
             st.rerun()
     
     # Show transaction history
@@ -1311,7 +1333,7 @@ def page_rebalancing_alerts():
             # Filter by asset
             filter_asset = st.selectbox(
                 "Filter by Asset",
-                options=['All'] + [a for a in ALLOCATION_TARGET.keys() if a != 'Cash'],
+                options=['All'] + list(ALLOCATION_TARGET.keys()),
                 key="filter_trans_asset"
             )
             
@@ -1319,14 +1341,21 @@ def page_rebalancing_alerts():
             
             if filtered_trans:
                 trans_table = []
+                type_labels = {
+                    'buy': '🟢 Buy',
+                    'sell': '🔴 Sell',
+                    'contribution': '💰 Contribution',
+                    'dividend': '📊 Dividend',
+                }
                 for t in filtered_trans:
+                    is_cash = t['type'] in ('contribution', 'dividend')
                     trans_table.append({
                         'ID': t['id'],
                         'Date': t['date'],
                         'Asset': t['asset'],
-                        'Type': '🟢 Buy' if t['type'] == 'buy' else '🔴 Sell',
-                        'Shares': t['shares'],
-                        'Price': f"₩{t['price_per_share']:,.0f}",
+                        'Type': type_labels.get(t['type'], t['type']),
+                        'Shares': '-' if is_cash else t['shares'],
+                        'Price': f"₩{t['price_per_share']:,.0f}" if not is_cash else '-',
                         'Total': f"₩{t['total_cost']:,.0f}",
                         'Notes': t.get('notes', '')
                     })
@@ -1482,7 +1511,7 @@ def page_rebalancing_alerts():
             st.dataframe(df_gains, width="stretch", hide_index=True)
     else:
         st.info("💡 No transaction history recorded yet. Add your purchase history to see gains/losses analysis.")
-        st.caption("Go to 'Transaction History' section below to record your buy/sell transactions.")
+        st.caption("Go to 'Transaction History' section below to record buy/sell transactions, contributions, and dividends.")
     
     st.divider()
     

@@ -274,10 +274,18 @@ WHAT YOUR APP HAS (✅ COMPLETE):
    ✅ Portfolio value calculation
 
 2. REAL-TIME PRICE DATA
-   ✅ pykrx integration (Korea Exchange)
+   ✅ pykrx integration (Korea Exchange) for ETF prices
    ✅ Automatic price fetching
    ✅ Price caching (30-minute TTL)
    ✅ Fallback mechanism for errors
+
+2b. GLOBAL MARKET DATA (Added March 2026)
+   ✅ yfinance integration (Yahoo Finance) via src/market_data.py
+   ✅ 8 live indices: S&P 500, NASDAQ, Dow Jones, KOSPI, KOSDAQ, VIX, US 10Y Yield, USD/KRW
+   ✅ Hybrid approach: live API → 10-min Streamlit cache → mock fallback
+   ✅ Batch download (all tickers in one API call, ~2-3 seconds)
+   ✅ Source indicators (🟢 Live / 🟡 Fallback / 🔴 Mock)
+   ✅ USD/KRW exchange rate highlighted as metric card
 
 3. PORTFOLIO CALCULATIONS
    ✅ Current portfolio value = Σ(shares × price)
@@ -293,6 +301,8 @@ WHAT YOUR APP HAS (✅ COMPLETE):
 
 5. TRANSACTION TRACKING
    ✅ Buy/sell transaction recording
+   ✅ Employer Contribution tracking (cash deposits)
+   ✅ ETF Dividend tracking (dividend income)
    ✅ Date and price tracking
    ✅ Gains/losses calculation
    ✅ Cost basis tracking (FIFO)
@@ -308,6 +318,14 @@ WHAT YOUR APP HAS (✅ COMPLETE):
    ✅ Holdings breakdown
    ✅ Allocation pie charts
    ✅ Performance tracking
+
+8. EXPORT/IMPORT AI REVIEW (Added March 2026)
+   ✅ Export portfolio snapshot as markdown for AI review
+   ✅ Response Format Instructions for parseable AI output
+   ✅ Import AI-generated .md files with parser
+   ✅ Side-by-side comparison of current vs recommended allocation
+   ✅ One-click Apply/Reset allocation targets
+   ✅ Allocation change history tracking
 
 WHAT YOUR APP LACKS (❌ MISSING):
 

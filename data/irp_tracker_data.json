@@ -137,6 +137,105 @@
       "total_cost": 15623330,
       "notes": "",
       "created_at": "2026-03-11T17:33:07.124654"
+    },
+    {
+      "id": "83074e9f",
+      "asset": "Cash",
+      "type": "contribution",
+      "date": "2025-12-30",
+      "shares": 0,
+      "price_per_share": 962912,
+      "total_cost": 0,
+      "notes": "",
+      "created_at": "2026-03-11T17:57:46.487388"
+    },
+    {
+      "id": "83f89f21",
+      "asset": "Cash",
+      "type": "contribution",
+      "date": "2026-01-30",
+      "shares": 0,
+      "price_per_share": 1572133,
+      "total_cost": 0,
+      "notes": "",
+      "created_at": "2026-03-11T17:58:26.341564"
+    },
+    {
+      "id": "f22ec1bf",
+      "asset": "Cash",
+      "type": "contribution",
+      "date": "2026-02-26",
+      "shares": 0,
+      "price_per_share": 714073,
+      "total_cost": 0,
+      "notes": "",
+      "created_at": "2026-03-11T17:59:07.986601"
+    },
+    {
+      "id": "ef401322",
+      "asset": "AI Tech TOP10",
+      "type": "dividend",
+      "date": "2026-03-04",
+      "shares": 0,
+      "price_per_share": 623714,
+      "total_cost": 0,
+      "notes": "",
+      "created_at": "2026-03-11T18:00:10.554670"
+    },
+    {
+      "id": "382f20ff",
+      "asset": "AI Tech TOP10",
+      "type": "dividend",
+      "date": "2026-02-03",
+      "shares": 0,
+      "price_per_share": 665574,
+      "total_cost": 0,
+      "notes": "",
+      "created_at": "2026-03-11T18:00:39.353240"
+    },
+    {
+      "id": "c248f722",
+      "asset": "AI Core Power",
+      "type": "dividend",
+      "date": "2026-02-03",
+      "shares": 0,
+      "price_per_share": 26664,
+      "total_cost": 0,
+      "notes": "",
+      "created_at": "2026-03-11T18:01:04.174066"
+    },
+    {
+      "id": "db98a8aa",
+      "asset": "Japan TOPIX",
+      "type": "dividend",
+      "date": "2026-02-03",
+      "shares": 0,
+      "price_per_share": 2378,
+      "total_cost": 0,
+      "notes": "",
+      "created_at": "2026-03-11T18:01:33.176828"
+    },
+    {
+      "id": "84fc377a",
+      "asset": "Gold",
+      "type": "dividend",
+      "date": "2026-01-05",
+      "shares": 0,
+      "price_per_share": 567,
+      "total_cost": 0,
+      "notes": "",
+      "created_at": "2026-03-11T18:01:57.437385"
+    },
+    {
+      "id": "d2d06ac7",
+      "asset": "AI Tech TOP10",
+      "type": "dividend",
+      "date": "2026-01-05",
+      "shares": 0,
+      "price_per_share": 682318,
+      "total_cost": 0,
+      "notes": "",
+      "created_at": "2026-03-11T18:02:17.617878"
     }
   ],
   "rebalancing_settings": {

@@ -4,7 +4,7 @@ A professional web application for tracking your Korean IRP (Individual Retireme
 
 ## Features
 
-- **Market Monitoring**: Real-time tracking of S&P 500, NASDAQ, AI sector, and Korean KOSPI
+- **Market Monitoring**: Live market data via yfinance (S&P 500, NASDAQ, Dow Jones, KOSPI, KOSDAQ, VIX, US 10Y Yield, USD/KRW)
 - **Rebalancing Alerts**: Automatic detection of portfolio drift with specific buy/sell recommendations
 - **Time-Based Rebalancing**: Configurable rebalancing schedule (e.g., every 90 days) with alerts
 - **Transaction Tracking**: Record buy/sell transactions with date, shares, and price
@@ -41,6 +41,7 @@ c:/Users/tskdkim/Projects/IPR_Plan/
 ├── src/                                # Source code
 │   ├── __init__.py                     # Package initializer
 │   ├── irp_web_app_enhanced.py         # Main Streamlit app (Market, Rebalancing, etc.)
+│   ├── market_data.py                  # Market data module (yfinance + cache + fallback)
 │   ├── data_handler.py                 # Data loading/saving utilities
 │   └── utils.py                        # Helper functions (incl. krw_to_shares)
 ├── data/                               # Data storage
@@ -79,7 +80,7 @@ c:/Users/tskdkim/Projects/IPR_Plan/
 
    Or manually:
    ```bash
-   pip install streamlit pandas plotly numpy requests pykrx
+   pip install streamlit pandas plotly numpy requests pykrx yfinance
    ```
 
 5. **Verify installation**
@@ -128,14 +129,19 @@ To stop the app, press `Ctrl+C` in the terminal.
 - All 4 tranches contribute to your goal
 
 ### Market Dashboard
-- Real-time market data:
-  - S&P 500 (overall market health)
-  - NASDAQ (tech sector indicator)
-  - AI Tech ETF (your AI exposure)
-  - Korean KOSPI (local market)
-- Market trend analysis (Bullish/Bearish/Neutral)
-- AI-powered recommendations
-- Risk assessment based on market conditions
+- **Live market data** via Yahoo Finance (yfinance) with 10-minute cache:
+  - S&P 500 (US large cap benchmark)
+  - NASDAQ (US tech-heavy composite)
+  - Dow Jones (US blue chip 30)
+  - KOSPI (Korea composite index)
+  - KOSDAQ (Korea growth/tech index)
+  - US 10Y Treasury Yield (bond reference)
+  - VIX (CBOE volatility / fear gauge)
+  - **USD/KRW exchange rate** (highlighted metric card)
+- Hybrid approach: real API → cached 10 min → fallback mock if offline
+- Source indicators: 🟢 Live / 🟡 Fallback / 🔴 Mock
+- Market trend analysis uses live VIX for volatility, 10Y yield for bond outlook
+- AI-powered recommendations based on current conditions
 
 ### Rebalancing Alerts
 - Automatic drift detection (>5% from target)
@@ -295,16 +301,22 @@ This approach is more accurate because:
 
 ### Transaction Tracking
 
-Record your buy/sell transactions to calculate accurate gains/losses:
+Record your transactions to track portfolio activity and calculate gains/losses:
 
 | Field | Description | Required |
 |-------|-------------|----------|
 | Asset | Which ETF (e.g., AI Core Power) | ✅ Yes |
-| Date | Purchase/sale date | ✅ Yes |
-| Type | Buy or Sell | ✅ Yes |
-| Shares | Number of shares | ✅ Yes |
-| Price per Share | Purchase price in KRW | ✅ Yes |
+| Date | Transaction date | ✅ Yes |
+| Type | 🟢 Buy, 🔴 Sell, 💰 Employer Contribution, or 📊 ETF Dividend | ✅ Yes |
+| Shares | Number of shares (Buy/Sell only) | ✅ For Buy/Sell |
+| Price per Share | Price in KRW (Buy/Sell only) | ✅ For Buy/Sell |
+| Amount | KRW amount (Contribution/Dividend only) | ✅ For Cash types |
 | Notes | Optional memo | ❌ No |
+
+**Transaction Types:**
+- **Buy/Sell**: Standard ETF trades with shares and price
+- **Employer Contribution**: Cash deposits from employer (amount in KRW)
+- **ETF Dividend**: Dividend income received from ETFs (amount in KRW)
 
 ### Gains/Losses Calculation
 

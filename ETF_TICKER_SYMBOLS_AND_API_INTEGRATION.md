@@ -603,6 +603,18 @@ SHORT-TERM (Next 2 weeks):
 SUMMARY
 ═════════════════════════════════════════════════════════════════════════════════
 
+CURRENT IMPLEMENTATION STATUS (March 2026):
+
+Korean ETF Prices:
+  └─ pykrx (Korea Exchange data) — ✅ IMPLEMENTED
+  └─ 30-minute cache, fallback prices if API fails
+
+Global Market Indices & USD/KRW:
+  └─ yfinance (Yahoo Finance) — ✅ IMPLEMENTED (March 2026)
+  └─ 8 indices: S&P 500, NASDAQ, Dow Jones, KOSPI, KOSDAQ, VIX, US 10Y Yield, USD/KRW
+  └─ Hybrid approach: live API → 10-min cache → mock fallback
+  └─ Module: src/market_data.py
+
 YOUR QUESTIONS ANSWERED:
 
 Q1: Is my response clear?
