@@ -38,7 +38,7 @@ c:/Users/tskdkim/Projects/IPR_Plan/
 │   ├── __init__.py                     # Package initializer
 │   ├── irp_web_app_enhanced.py         # Main Streamlit app (Market, Rebalancing, etc.)
 │   ├── data_handler.py                 # Data loading/saving utilities
-│   └── utils.py                        # Helper functions
+│   └── utils.py                        # Helper functions (incl. krw_to_shares)
 ├── data/                               # Data storage
 │   └── irp_tracker_data.json           # Your retirement data (auto-created)
 └── .venv/                              # Virtual environment
@@ -135,8 +135,8 @@ To stop the app, press `Ctrl+C` in the terminal.
 
 ### Rebalancing Alerts
 - Automatic drift detection (>5% from target)
-- Specific buy/sell recommendations
-- Rebalancing calculator with exact amounts
+- Specific buy/sell recommendations with **number of shares** to trade
+- Rebalancing calculator with exact amounts (KRW + shares)
 - Execution order guidance (sell first, then buy)
 - Priority ranking (HIGH/MEDIUM)
 

@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import requests
 from functools import lru_cache
+from utils import krw_to_shares
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CONFIGURATION & SETUP
@@ -1546,21 +1547,26 @@ def page_rebalancing_alerts():
         difference = target_value - current_value
         
         if abs(difference) > 500_000:  # Only if > 500K difference
+            asset_price = prices.get(asset, {}).get('price', 0)
             if difference > 0:
+                shares_to_trade = krw_to_shares(abs(difference), asset_price, action="buy") if asset != 'Cash' else '-'
                 trades_buy.append({
                     'Asset': asset,
                     'Current Value': f"{current_value:,.0f}",
                     'Target Value': f"{target_value:,.0f}",
-                    'Amount to BUY': f"{abs(difference):,.0f}",
+                    'Amount (KRW)': f"{abs(difference):,.0f}",
+                    'Shares to BUY': shares_to_trade,
                     '_amount': abs(difference)
                 })
                 total_buy += abs(difference)
             else:
+                shares_to_trade = krw_to_shares(abs(difference), asset_price, action="sell") if asset != 'Cash' else '-'
                 trades_sell.append({
                     'Asset': asset,
                     'Current Value': f"{current_value:,.0f}",
                     'Target Value': f"{target_value:,.0f}",
-                    'Amount to SELL': f"{abs(difference):,.0f}",
+                    'Amount (KRW)': f"{abs(difference):,.0f}",
+                    'Shares to SELL': shares_to_trade,
                     '_amount': abs(difference)
                 })
                 total_sell += abs(difference)

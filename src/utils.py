@@ -2,6 +2,7 @@
 Utility functions for IRP Retirement Tracker
 """
 
+import math
 from datetime import datetime
 from typing import Union
 
@@ -87,6 +88,21 @@ def get_allocation_drift(current: dict, target: dict) -> dict:
             "needs_rebalance": abs(current_val - target_val) > 0.05
         }
     return drift
+
+
+def krw_to_shares(amount_krw: float, price_per_share: float, action: str = "sell") -> int:
+    """Convert KRW amount to number of whole shares.
+    
+    For 'sell': rounds down (floor) to avoid over-selling.
+    For 'buy': rounds up (ceil) to ensure reaching target allocation.
+    """
+    if price_per_share <= 0:
+        return 0
+    exact = amount_krw / price_per_share
+    if action == "sell":
+        return math.floor(exact)
+    else:
+        return math.ceil(exact)
 
 
 def format_date(date_str: str, format_out: str = "%Y년 %m월 %d일") -> str:
