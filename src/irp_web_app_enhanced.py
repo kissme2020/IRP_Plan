@@ -16,11 +16,11 @@ import plotly.express as px
 import plotly.graph_objects as go
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import numpy as np
 import requests
 from functools import lru_cache
-from utils import krw_to_shares, generate_portfolio_snapshot, parse_ai_review_md
+from utils import krw_to_shares, generate_portfolio_snapshot, parse_ai_review_md, get_settlement_date, KR_TZ
 from market_data import fetch_market_data, get_usd_krw, MARKET_INDICES
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1611,6 +1611,24 @@ def page_rebalancing_alerts():
     # ═══════════════════════════════════════════════════════════════════════════
     st.header("💰 Section 3: Recommended Rebalancing Trades")
     
+    # Settlement date info (T+2 Korea business days)
+    settlement = get_settlement_date()
+    trade_date_str = settlement['trade_date'].strftime('%Y-%m-%d (%a)')
+    settle_date_str = settlement['settlement_date'].strftime('%Y-%m-%d (%a)')
+    
+    st.info(f"""
+    📅 **Settlement Timeline (T+2 Korea Business Days)**
+    
+    | Step | Date | Action |
+    |------|------|--------|
+    | **Trade Day (T)** | {trade_date_str} | Execute SELL orders on Samsung Fund |
+    | **Settlement (T+2)** | {settle_date_str} | Cash available → Execute BUY orders |
+    
+    {settlement['description']}
+    """)
+    if settlement.get('holidays_in_range'):
+        st.caption(f"🇰🇷 Korean holidays in range: {', '.join(settlement['holidays_in_range'])}")
+    
     st.write("Based on your current portfolio, here are the specific trades to execute:")
     
     # Calculate trades using real holdings
@@ -1688,12 +1706,94 @@ def page_rebalancing_alerts():
             st.metric("Net Cash Needed", f"{net:,.0f} KRW", 
                      delta=f"{net/1_000_000:+.1f}M" if net != 0 else "0")
         
-        st.info("""
-        **Execution Order:**
-        1. ✅ SELL overweight assets first (generates cash)
-        2. ✅ Then BUY underweight assets
-        3. ✅ Review after execution to confirm alignment
+        st.info(f"""
+        **Execution Order (T+2 Settlement):**
+        1. 📉 **{trade_date_str}** — SELL overweight assets (generates pending cash)
+        2. ⏳ **Wait for settlement** — Cash arrives {settle_date_str}
+        3. 📈 **{settle_date_str}** — BUY underweight assets (recalculate shares at current prices!)
+        4. ✅ **After buys** — Record rebalancing below
+        
+        ⚠️ **Important**: Recalculate buy-side share counts on {settle_date_str} using live prices, 
+        as prices may have changed during the settlement window.
         """)
+        
+        # ═══════════════════════════════════════════════════════════════════════
+        # REBALANCING WORKFLOW TRACKER
+        # ═══════════════════════════════════════════════════════════════════════
+        st.divider()
+        st.subheader("📍 Rebalancing Workflow Tracker")
+        
+        # Load workflow state from data
+        workflow = data.get('rebalancing_workflow', {})
+        wf_status = workflow.get('status', 'not_started')
+        
+        # Progress bar
+        status_steps = ['not_started', 'sells_executed', 'settling', 'buys_executed', 'completed']
+        step_labels = ['Not Started', 'Sells Executed', 'Awaiting Settlement', 'Buys Executed', 'Completed']
+        step_idx = status_steps.index(wf_status) if wf_status in status_steps else 0
+        st.progress(step_idx / (len(status_steps) - 1), text=f"Step {step_idx}/{len(status_steps)-1}: {step_labels[step_idx]}")
+        
+        # Show current state and actions
+        wf_col1, wf_col2 = st.columns(2)
+        
+        with wf_col1:
+            if wf_status == 'not_started':
+                st.write("🔵 **Status**: Ready to start rebalancing")
+                if st.button("📉 I've executed the SELL orders", key="wf_sell_done", type="primary"):
+                    data['rebalancing_workflow'] = {
+                        'status': 'sells_executed',
+                        'sell_date': datetime.now().isoformat(),
+                        'settlement_date': settlement['settlement_date'].isoformat(),
+                        'sells_total': total_sell,
+                        'planned_buys': [{'asset': t['Asset'], 'amount': t['_amount']} for t in trades_buy],
+                    }
+                    save_data(data)
+                    st.success("✅ Sell orders recorded! Waiting for settlement...")
+                    st.rerun()
+            
+            elif wf_status == 'sells_executed' or wf_status == 'settling':
+                sell_date = workflow.get('sell_date', '')[:10]
+                target_settle = workflow.get('settlement_date', '')[:10]
+                today_kr = datetime.now(KR_TZ).date()
+                settle_dt = date.fromisoformat(target_settle) if target_settle else today_kr
+                days_left = (settle_dt - today_kr).days
+                
+                if days_left > 0:
+                    st.write(f"⏳ **Status**: Waiting for settlement")
+                    st.write(f"Sold on: **{sell_date}**")
+                    st.write(f"Cash settles: **{target_settle}** ({days_left} day(s) remaining)")
+                    st.warning("💡 Do NOT execute buy orders yet — cash has not settled.")
+                else:
+                    st.write(f"✅ **Status**: Cash has settled! Ready to buy.")
+                    st.write(f"Sold on: **{sell_date}** → Settled: **{target_settle}**")
+                    st.success("💰 Cash is available. Execute BUY orders now with current prices.")
+                    if st.button("📈 I've executed the BUY orders", key="wf_buy_done", type="primary"):
+                        data['rebalancing_workflow']['status'] = 'buys_executed'
+                        data['rebalancing_workflow']['buy_date'] = datetime.now().isoformat()
+                        save_data(data)
+                        st.rerun()
+            
+            elif wf_status == 'buys_executed':
+                st.write("✅ **Status**: All orders executed!")
+                st.write("Update your holdings below to complete the rebalancing.")
+        
+        with wf_col2:
+            if wf_status != 'not_started':
+                st.write("**Workflow Summary:**")
+                if workflow.get('sell_date'):
+                    st.write(f"📉 Sells: {workflow['sell_date'][:10]}")
+                if workflow.get('settlement_date'):
+                    st.write(f"💰 Settlement: {workflow['settlement_date'][:10]}")
+                if workflow.get('buy_date'):
+                    st.write(f"📈 Buys: {workflow['buy_date'][:10]}")
+                if workflow.get('sells_total'):
+                    st.write(f"💵 Amount: ₩{workflow['sells_total']:,.0f}")
+                
+                st.write("")
+                if st.button("🔄 Reset Workflow", key="wf_reset", help="Reset if you want to start over"):
+                    data['rebalancing_workflow'] = {'status': 'not_started'}
+                    save_data(data)
+                    st.rerun()
         
         # ═══════════════════════════════════════════════════════════════════════
         # SECTION 4: RECORD REBALANCING

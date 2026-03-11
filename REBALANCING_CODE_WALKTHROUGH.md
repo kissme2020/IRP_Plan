@@ -383,9 +383,24 @@ USER JOURNEY - HOW REBALANCING ALERTS WORK:
    └─ Days until next rebalance due
    └─ Alert if overdue
 
-10. USER TAKES ACTION
-    └─ Reviews recommendations
-    └─ Executes trades (manually)
+10. SETTLEMENT TIMELINE (T+2 Korea Business Days)
+    └─ Calculate settlement date via get_settlement_date() in utils.py
+    └─ Excludes weekends (Sat/Sun)
+    └─ Excludes Korean public holidays (holidays.KR() package)
+    └─ Uses Asia/Seoul timezone
+    └─ Shows trade date, settlement date, and any holidays in range
+
+11. REBALANCING WORKFLOW TRACKER
+    └─ State machine: not_started → sells_executed → settling → buys_executed → completed
+    └─ Progress bar visualization
+    └─ Warns "Do NOT buy yet" during settlement window
+    └─ Reminds to recalculate buy offers at current prices on settlement day
+    └─ Stores workflow state in irp_tracker_data.json
+    └─ Reset button to restart workflow
+
+12. USER TAKES ACTION
+    └─ Day T: Executes SELL orders, clicks "I've executed sells"
+    └─ Day T+2: Cash settles, executes BUY orders, clicks "I've executed buys"
     └─ Records transaction
     └─ Logs rebalancing history
 
@@ -398,9 +413,11 @@ Lines dedicated to rebalancing:
   ├─ Detection logic: ~40 lines (get_rebalancing_recommendations)
   ├─ AI integration: ~15 lines (get_ai_recommendations)
   ├─ Time-based: ~50 lines (check_time_based_rebalancing)
+  ├─ Settlement calc: ~60 lines (get_settlement_date in utils.py)
+  ├─ Workflow tracker: ~70 lines (rebalancing_workflow state machine)
   ├─ History tracking: ~20 lines (record_rebalancing_action)
   ├─ UI display: ~100+ lines (page_rebalancing_alerts)
-  └─ Total: ~230+ lines of rebalancing-specific code
+  └─ Total: ~370+ lines of rebalancing-specific code
 
 FEATURES IMPLEMENTED:
   ✅ Drift detection (>5% threshold)
@@ -413,6 +430,8 @@ FEATURES IMPLEMENTED:
   ✅ AI integration (smart recommendations)
   ✅ UI display (beautiful, interactive, width="stretch")
   ✅ Settings management (customizable)
+  ✅ T+2 settlement timeline (Korea biz days, excl. weekends + holidays)
+  ✅ Rebalancing workflow tracker (state machine with progress bar)
   ✅ Data-driven allocation targets (loaded from JSON at startup)
   ✅ Export for AI Review (portfolio snapshot with response format instructions)
   ✅ Import AI Review (parse .md files, apply allocation changes)

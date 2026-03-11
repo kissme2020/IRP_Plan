@@ -4,8 +4,10 @@ Utility functions for IRP Retirement Tracker
 
 import math
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from typing import Union
+from zoneinfo import ZoneInfo
+import holidays
 
 
 def format_currency(amount: Union[int, float], currency: str = "KRW") -> str:
@@ -104,6 +106,71 @@ def krw_to_shares(amount_krw: float, price_per_share: float, action: str = "sell
         return math.floor(exact)
     else:
         return math.ceil(exact)
+
+
+# Korea timezone and holidays for settlement calculation
+KR_TZ = ZoneInfo("Asia/Seoul")
+KR_HOLIDAYS = holidays.KR()
+
+
+def get_settlement_date(trade_date=None):
+    """Calculate T+2 settlement date excluding weekends and Korean holidays.
+    
+    Args:
+        trade_date: date or datetime object. Defaults to today (Korea time).
+    
+    Returns:
+        dict with settlement_date, trade_date, business_days_away, and description.
+    """
+    if trade_date is None:
+        trade_date = datetime.now(KR_TZ).date()
+    elif isinstance(trade_date, datetime):
+        trade_date = trade_date.date()
+
+    business_days = 0
+    current = trade_date
+    while business_days < 2:
+        current += timedelta(days=1)
+        if current.weekday() < 5 and current not in KR_HOLIDAYS:
+            business_days += 1
+
+    # Check if settlement day itself is a holiday (shouldn't be, but safety check)
+    settle_date = current
+
+    # Build description
+    cal_days = (settle_date - trade_date).days
+    holiday_names = []
+    check = trade_date
+    while check <= settle_date:
+        if check in KR_HOLIDAYS:
+            holiday_names.append(f"{check.strftime('%m/%d')} {KR_HOLIDAYS.get(check)}")
+        check += timedelta(days=1)
+
+    desc_parts = [f"T+2 business days = {cal_days} calendar days"]
+    if cal_days > 2:
+        reasons = []
+        # Count weekends
+        d = trade_date
+        weekends = 0
+        while d <= settle_date:
+            if d.weekday() >= 5:
+                weekends += 1
+            d += timedelta(days=1)
+        if weekends:
+            reasons.append(f"{weekends} weekend day(s)")
+        if holiday_names:
+            reasons.append(f"holiday(s): {', '.join(holiday_names)}")
+        if reasons:
+            desc_parts.append(f"skipped {' + '.join(reasons)}")
+
+    return {
+        "trade_date": trade_date,
+        "settlement_date": settle_date,
+        "business_days": 2,
+        "calendar_days": cal_days,
+        "description": " — ".join(desc_parts),
+        "holidays_in_range": holiday_names,
+    }
 
 
 def format_date(date_str: str, format_out: str = "%Y년 %m월 %d일") -> str:

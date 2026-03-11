@@ -147,7 +147,16 @@ To stop the app, press `Ctrl+C` in the terminal.
 - Automatic drift detection (>5% from target)
 - Specific buy/sell recommendations with **number of shares** to trade
 - Rebalancing calculator with exact amounts (KRW + shares)
-- Execution order guidance (sell first, then buy)
+- **T+2 Settlement Timeline**: Shows trade day and settlement date (Korea business days)
+  - Excludes weekends and Korean public holidays (설날, 추석, etc.)
+  - Uses `Asia/Seoul` timezone
+  - Settlement date auto-calculated via `holidays` Python package
+- **Rebalancing Workflow Tracker**: Step-by-step state machine
+  - `Not Started` → `Sells Executed` → `Awaiting Settlement` → `Buys Executed` → `Completed`
+  - Progress bar with visual status
+  - Warns against buying before cash settles
+  - Reminds to recalculate buy-side shares at current prices on settlement day
+- Execution order guidance (sell first, wait for settlement, then buy)
 - Priority ranking (HIGH/MEDIUM)
 
 ### Plan Revision

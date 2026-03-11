@@ -298,6 +298,9 @@ WHAT YOUR APP HAS (✅ COMPLETE):
    ✅ Specific recommendations (which ETF, how much)
    ✅ Rebalancing calculator
    ✅ Trade execution order (SELL first, BUY second)
+   ✅ T+2 settlement timeline (Korea business days, excl. weekends + holidays)
+   ✅ Rebalancing workflow tracker (state: sells → settling → buys → complete)
+   ✅ Asia/Seoul timezone + holidays.KR() for accurate settlement dates
 
 5. TRANSACTION TRACKING
    ✅ Buy/sell transaction recording
