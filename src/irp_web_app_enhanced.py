@@ -3276,6 +3276,448 @@ def page_rsu_tracking():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PAGE 9: PROJECTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def page_projections():
+    """Projections — Year-by-year forecast, scenario analysis, what-if simulator"""
+    st.title("🔮 Projections")
+
+    data = load_data()
+    progress = calculate_progress(data)
+    current_balance = progress['current']
+    years_remaining, _, days_remaining = calculate_time_remaining()
+    months_left = max(1, int(years_remaining * 12))
+
+    # ── User Controls ────────────────────────────────────────────────────────
+    st.subheader("⚙️ Projection Parameters")
+    col_p1, col_p2, col_p3, col_p4 = st.columns(4)
+    with col_p1:
+        monthly_contrib = st.number_input(
+            "Monthly Contribution (KRW)",
+            value=IRP_CONFIG['base_monthly'],
+            min_value=0, step=100_000, format="%d",
+            key="proj_monthly"
+        )
+    with col_p2:
+        annual_bonus = st.number_input(
+            "Annual Bonus (KRW)",
+            value=IRP_CONFIG['expected_annual_bonus'],
+            min_value=0, step=1_000_000, format="%d",
+            key="proj_bonus"
+        )
+    with col_p3:
+        custom_rate = st.number_input(
+            "Expected Return (%)",
+            value=IRP_CONFIG['target_cagr'] * 100,
+            min_value=0.0, max_value=30.0, step=0.5, format="%.1f",
+            key="proj_rate"
+        )
+    with col_p4:
+        rsu_include = st.checkbox("Include RSU (after-tax)", value=True, key="proj_rsu")
+
+    # RSU lump sums by year
+    rsu_by_year = {}
+    if rsu_include:
+        rsu_settings = data.get('rsu_settings', {})
+        ex_rate = rsu_settings.get('exchange_rate', IRP_CONFIG['rsu_kwr_per_usd'])
+        tax_saved = rsu_settings.get('tax_rate_pct', None)
+        atax = (100 - tax_saved) / 100 if tax_saved is not None else IRP_CONFIG['rsu_after_tax_pct']
+        for r in data.get('rsu_vesting', []):
+            if not r.get('vested', False):
+                yr = int(r['date'][:4])
+                shares = r.get('shares', 0)
+                price = r.get('grant_price_usd', 0)
+                net_krw = shares * price * ex_rate * atax
+                rsu_by_year[yr] = rsu_by_year.get(yr, 0) + net_krw
+
+    st.divider()
+
+    # ── Year-by-Year Projection Table ────────────────────────────────────────
+    st.subheader("📅 Year-by-Year Projection")
+
+    from utils import calculate_future_value
+
+    rows = []
+    balance = current_balance
+    today = datetime.now()
+
+    for year in range(today.year, 2031):
+        if year == today.year:
+            months_this_year = 12 - today.month
+        else:
+            months_this_year = min(12, int((datetime(2030, 12, 31) - datetime(year, 1, 1)).days / 30.44))
+            months_this_year = max(0, min(12, months_this_year))
+
+        # Monthly contributions
+        contrib = monthly_contrib * months_this_year
+        # Annual bonus (added once per year, except partial first year)
+        bonus = annual_bonus if year > today.year else int(annual_bonus * months_this_year / 12)
+        # RSU vesting
+        rsu_amt = rsu_by_year.get(year, 0)
+        # Investment growth (compound monthly)
+        monthly_rate = custom_rate / 12 / 100
+        growth_start = balance
+        for _ in range(months_this_year):
+            balance = balance * (1 + monthly_rate) + monthly_contrib
+        # Add bonus & RSU at year end
+        balance += bonus + rsu_amt
+        investment_return = balance - growth_start - contrib - bonus - rsu_amt
+
+        rows.append({
+            'Year': year,
+            'Start Balance': growth_start,
+            'Contributions': contrib,
+            'Bonus': bonus,
+            'RSU (After-Tax)': rsu_amt,
+            'Investment Return': investment_return,
+            'End Balance': balance,
+            'vs Goal': balance - IRP_CONFIG['target_goal'],
+        })
+
+    df_year = pd.DataFrame(rows)
+
+    # Format for display
+    display_rows = []
+    for _, r in df_year.iterrows():
+        display_rows.append({
+            'Year': int(r['Year']),
+            'Start': f"₩{r['Start Balance']:,.0f}",
+            'Contributions': f"₩{r['Contributions']:,.0f}",
+            'Bonus': f"₩{r['Bonus']:,.0f}",
+            'RSU': f"₩{r['RSU (After-Tax)']:,.0f}" if r['RSU (After-Tax)'] > 0 else '—',
+            'Return': f"₩{r['Investment Return']:,.0f}",
+            'End Balance': f"₩{r['End Balance']:,.0f}",
+            'vs Goal': f"₩{r['vs Goal']:,.0f}",
+        })
+    st.dataframe(pd.DataFrame(display_rows), use_container_width=True, hide_index=True)
+
+    final_balance = balance
+    col_r1, col_r2, col_r3 = st.columns(3)
+    with col_r1:
+        st.metric("Projected Final (2030)", f"₩{final_balance:,.0f}")
+    with col_r2:
+        delta = final_balance - IRP_CONFIG['target_goal']
+        st.metric("vs Goal (400M)", f"₩{delta:,.0f}",
+                  delta="Surplus" if delta >= 0 else "Shortfall",
+                  delta_color="normal" if delta >= 0 else "inverse")
+    with col_r3:
+        if current_balance > 0:
+            implied_cagr = ((final_balance / current_balance) ** (1 / max(0.1, years_remaining)) - 1) * 100
+            st.metric("Implied CAGR", f"{implied_cagr:.1f}%")
+
+    st.divider()
+
+    # ── Multi-Scenario Chart ─────────────────────────────────────────────────
+    st.subheader("📊 Scenario Comparison")
+
+    scenarios = {
+        'Conservative (6%)': 6.0,
+        f'Custom ({custom_rate:.1f}%)': custom_rate,
+        'Optimistic (15%)': 15.0,
+    }
+
+    projection_rows = []
+    for month in range(0, months_left + 1, 1):
+        date_label = (today + timedelta(days=month * 30.44)).strftime('%Y-%m')
+        row = {'Month': month, 'Date': date_label}
+        for label, rate in scenarios.items():
+            bal = current_balance
+            m_rate = rate / 12 / 100
+            for m in range(month):
+                # Add RSU lump sums at appropriate month
+                rsu_this = 0
+                month_date = today + timedelta(days=m * 30.44)
+                if rsu_include and month_date.month == 3:  # approximate RSU at March
+                    rsu_this = rsu_by_year.get(month_date.year, 0) / 12
+                bal = bal * (1 + m_rate) + monthly_contrib + rsu_this
+            row[label] = bal
+        projection_rows.append(row)
+
+    df_proj = pd.DataFrame(projection_rows)
+
+    fig = go.Figure()
+    colors = ['#FF9800', '#2196F3', '#4CAF50']
+    for i, label in enumerate(scenarios):
+        fig.add_trace(go.Scatter(
+            x=df_proj['Date'], y=df_proj[label],
+            mode='lines', name=label,
+            line=dict(color=colors[i], width=2)
+        ))
+
+    fig.add_hline(y=IRP_CONFIG['target_goal'], line_dash='dash', line_color='green',
+                  annotation_text='Goal: 400M')
+    fig.add_hline(y=IRP_CONFIG['minimum_floor'], line_dash='dot', line_color='orange',
+                  annotation_text='Floor: 300M')
+
+    fig.update_layout(
+        title='Portfolio Growth Scenarios',
+        xaxis_title='Date', yaxis_title='Balance (KRW)',
+        height=450, legend=dict(orientation='h', yanchor='bottom', y=1.02),
+        yaxis=dict(tickformat=',.0f')
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+    st.divider()
+
+    # ── Contribution Breakdown ───────────────────────────────────────────────
+    st.subheader("💰 Contribution Sources Breakdown")
+
+    total_contrib = sum(r['Contributions'] for _, r in df_year.iterrows())
+    total_bonus = sum(r['Bonus'] for _, r in df_year.iterrows())
+    total_rsu = sum(r['RSU (After-Tax)'] for _, r in df_year.iterrows())
+    total_return = sum(r['Investment Return'] for _, r in df_year.iterrows())
+
+    sources = {
+        'Monthly Contributions': total_contrib,
+        'Annual Bonus': total_bonus,
+        'RSU (After-Tax)': total_rsu,
+        'Investment Returns': total_return,
+    }
+    # Filter out zero values
+    sources = {k: v for k, v in sources.items() if v > 0}
+
+    col_c1, col_c2 = st.columns([1, 1])
+    with col_c1:
+        fig_pie = go.Figure(go.Pie(
+            labels=list(sources.keys()),
+            values=list(sources.values()),
+            hole=0.45,
+            textinfo='label+percent',
+            marker=dict(colors=['#2196F3', '#FF9800', '#9C27B0', '#4CAF50'])
+        ))
+        fig_pie.update_layout(title='Growth Sources (to 2030)', height=350)
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+    with col_c2:
+        for label, val in sources.items():
+            pct = val / sum(sources.values()) * 100
+            st.metric(label, f"₩{val:,.0f}", delta=f"{pct:.1f}%", delta_color="off")
+
+    st.divider()
+
+    # ── Required Return Calculator ───────────────────────────────────────────
+    st.subheader("🎯 Required Return to Reach Goal")
+
+    # Binary search for required annual return
+    target = IRP_CONFIG['target_goal']
+    low, high = 0.0, 50.0
+    for _ in range(50):
+        mid = (low + high) / 2
+        bal = current_balance
+        m_rate = mid / 12 / 100
+        for mo in range(months_left):
+            bal = bal * (1 + m_rate) + monthly_contrib
+        # Add all bonuses and RSU
+        bal += annual_bonus * years_remaining + sum(rsu_by_year.values())
+        if bal < target:
+            low = mid
+        else:
+            high = mid
+    required_return = (low + high) / 2
+
+    col_rr1, col_rr2, col_rr3 = st.columns(3)
+    with col_rr1:
+        st.metric("Required Annual Return", f"{required_return:.1f}%",
+                  help="Minimum CAGR needed to reach 400M by 2030")
+    with col_rr2:
+        buffer = custom_rate - required_return
+        st.metric("Buffer vs Your Rate", f"{buffer:+.1f}%",
+                  delta="Comfortable" if buffer > 2 else ("Tight" if buffer > 0 else "At risk"),
+                  delta_color="normal" if buffer > 0 else "inverse")
+    with col_rr3:
+        # Months to goal at custom rate
+        bal = current_balance
+        m_rate = custom_rate / 12 / 100
+        months_to_goal = None
+        for m in range(1, 120):
+            bal = bal * (1 + m_rate) + monthly_contrib
+            if m % 12 == 0:
+                bal += annual_bonus + rsu_by_year.get(today.year + m // 12, 0)
+            if bal >= target:
+                months_to_goal = m
+                break
+        if months_to_goal:
+            goal_date = (today + timedelta(days=months_to_goal * 30.44)).strftime('%Y-%m')
+            st.metric("Est. Goal Date", goal_date,
+                      delta=f"{months_to_goal} months", delta_color="off")
+        else:
+            st.metric("Est. Goal Date", "Beyond 10 years")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PAGE 10: REPORTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def page_reports():
+    """Reports — Portfolio summary, allocation analysis, contribution history"""
+    st.title("📋 Reports")
+
+    data = load_data()
+    progress = calculate_progress(data)
+    current_balance = progress['current']
+    years_remaining, _, _ = calculate_time_remaining()
+
+    # ── Portfolio Summary ────────────────────────────────────────────────────
+    st.subheader("📊 Portfolio Summary")
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Current Balance", f"₩{current_balance:,.0f}")
+    with col2:
+        st.metric("Target Goal", f"₩{IRP_CONFIG['target_goal']:,.0f}")
+    with col3:
+        st.metric("Progress", f"{progress['progress_goal']:.1f}%")
+    with col4:
+        st.metric("Time Remaining", f"{years_remaining:.1f} years")
+
+    st.divider()
+
+    # ── Allocation Report ────────────────────────────────────────────────────
+    st.subheader("🎯 Current Allocation vs Target")
+
+    holdings = data.get('holdings_values', data.get('holdings', {}))
+    if not holdings or all(v == 0 for v in holdings.values()):
+        holdings = get_default_holdings_values()
+    total_portfolio = sum(holdings.values()) if holdings else 0
+    target_alloc = ALLOCATION_TARGET
+
+    if total_portfolio > 0:
+        alloc_rows = []
+        for etf, amount in sorted(holdings.items(), key=lambda x: x[1], reverse=True):
+            actual_pct = (amount / total_portfolio) * 100
+            target_pct = target_alloc.get(etf, 0) * 100
+            diff = actual_pct - target_pct
+            alloc_rows.append({
+                'ETF': etf,
+                'Value (KRW)': f"₩{amount:,.0f}",
+                'Actual %': f"{actual_pct:.1f}%",
+                'Target %': f"{target_pct:.1f}%",
+                'Deviation': f"{diff:+.1f}%",
+                'Status': '✅' if abs(diff) <= 3 else ('⚠️' if abs(diff) <= 5 else '🔴'),
+            })
+        st.dataframe(pd.DataFrame(alloc_rows), use_container_width=True, hide_index=True)
+
+        # Allocation pie charts side by side
+        col_pie1, col_pie2 = st.columns(2)
+        with col_pie1:
+            fig_actual = go.Figure(go.Pie(
+                labels=list(holdings.keys()),
+                values=list(holdings.values()),
+                hole=0.4, textinfo='label+percent'
+            ))
+            fig_actual.update_layout(title='Current Allocation', height=350)
+            st.plotly_chart(fig_actual, use_container_width=True)
+
+        with col_pie2:
+            target_vals = {k: v * total_portfolio for k, v in target_alloc.items()}
+            fig_target = go.Figure(go.Pie(
+                labels=list(target_vals.keys()),
+                values=list(target_vals.values()),
+                hole=0.4, textinfo='label+percent'
+            ))
+            fig_target.update_layout(title='Target Allocation', height=350)
+            st.plotly_chart(fig_target, use_container_width=True)
+    else:
+        st.info("No holdings data available.")
+
+    st.divider()
+
+    # ── Contribution History Summary ─────────────────────────────────────────
+    st.subheader("💰 Contribution Summary")
+
+    transactions = data.get('transactions', [])
+    contributions = [t for t in transactions if t.get('type') == 'contribution']
+    dividends = [t for t in transactions if t.get('type') == 'dividend']
+
+    col_h1, col_h2, col_h3, col_h4 = st.columns(4)
+    total_contribs = sum(t.get('price_per_share', t.get('amount', 0)) for t in contributions)
+    total_divs = sum(t.get('price_per_share', t.get('amount', 0)) for t in dividends)
+    with col_h1:
+        st.metric("Total Contributions", f"₩{total_contribs:,.0f}")
+    with col_h2:
+        st.metric("# of Deposits", f"{len(contributions)}")
+    with col_h3:
+        st.metric("Total Dividends", f"₩{total_divs:,.0f}")
+    with col_h4:
+        avg = total_contribs / len(contributions) if contributions else 0
+        st.metric("Avg Deposit", f"₩{avg:,.0f}")
+
+    # Monthly contribution bar chart
+    if contributions:
+        monthly_sums = {}
+        for t in contributions:
+            month_key = t.get('date', '')[:7]
+            amount = t.get('price_per_share', t.get('amount', 0))
+            monthly_sums[month_key] = monthly_sums.get(month_key, 0) + amount
+
+        months_sorted = sorted(monthly_sums.keys())
+        fig_contrib = go.Figure(go.Bar(
+            x=months_sorted,
+            y=[monthly_sums[m] for m in months_sorted],
+            marker_color='#2196F3',
+            text=[f"₩{monthly_sums[m]:,.0f}" for m in months_sorted],
+            textposition='auto'
+        ))
+        fig_contrib.update_layout(
+            title='Monthly Contributions',
+            xaxis_title='Month', yaxis_title='Amount (KRW)',
+            height=300, yaxis=dict(tickformat=',.0f')
+        )
+        st.plotly_chart(fig_contrib, use_container_width=True)
+
+    st.divider()
+
+    # ── RSU Summary ──────────────────────────────────────────────────────────
+    st.subheader("📈 RSU Summary")
+
+    rsu_list = data.get('rsu_vesting', [])
+    rsu_settings = data.get('rsu_settings', {})
+    ex_rate = rsu_settings.get('exchange_rate', IRP_CONFIG['rsu_kwr_per_usd'])
+    tax_saved = rsu_settings.get('tax_rate_pct', None)
+    atax = (100 - tax_saved) / 100 if tax_saved is not None else IRP_CONFIG['rsu_after_tax_pct']
+
+    if rsu_list:
+        total_shares = sum(r.get('shares', 0) for r in rsu_list)
+        vested_shares = sum(r.get('shares', 0) for r in rsu_list if r.get('vested'))
+        unvested_shares = total_shares - vested_shares
+        total_value = sum(
+            r.get('shares', 0) * (r.get('vest_price_usd') or r.get('grant_price_usd', 0)) * ex_rate * atax
+            for r in rsu_list
+        )
+
+        col_rsu1, col_rsu2, col_rsu3, col_rsu4 = st.columns(4)
+        with col_rsu1:
+            st.metric("Total Shares", f"{total_shares:,}")
+        with col_rsu2:
+            st.metric("Vested", f"{vested_shares:,}")
+        with col_rsu3:
+            st.metric("Unvested", f"{unvested_shares:,}")
+        with col_rsu4:
+            st.metric("Total Value (Net KRW)", f"₩{total_value:,.0f}")
+    else:
+        st.info("No RSU data available.")
+
+    st.divider()
+
+    # ── Key Parameters ───────────────────────────────────────────────────────
+    st.subheader("📝 Plan Parameters")
+
+    params = {
+        'Initial Balance': f"₩{IRP_CONFIG['initial_balance']:,.0f}",
+        'Target Goal': f"₩{IRP_CONFIG['target_goal']:,.0f}",
+        'Minimum Floor': f"₩{IRP_CONFIG['minimum_floor']:,.0f}",
+        'Target CAGR': f"{IRP_CONFIG['target_cagr'] * 100:.1f}%",
+        'Monthly Contribution': f"₩{IRP_CONFIG['base_monthly']:,.0f}",
+        'Annual Bonus': f"₩{IRP_CONFIG['expected_annual_bonus']:,.0f}",
+        'Start Date': IRP_CONFIG['start_date'].strftime('%Y-%m-%d'),
+        'Retirement Date': IRP_CONFIG['retirement_date'].strftime('%Y-%m-%d'),
+    }
+    df_params = pd.DataFrame(list(params.items()), columns=['Parameter', 'Value'])
+    st.dataframe(df_params, use_container_width=True, hide_index=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # MAIN APP (All Original Pages + 3 New Pages)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -3342,10 +3784,13 @@ def main():
         page_track_deposits()
     elif page == "RSU Tracking":
         page_rsu_tracking()
-    # Note: Remaining original pages to be implemented
+    elif page == "Projections":
+        page_projections()
+    elif page == "Reports":
+        page_reports()
     else:
-        st.write("# Original Pages")
-        st.info("Projections and Reports pages are coming soon.")
+        st.write("# Page Not Found")
+        st.info("This page is not available.")
 
 if __name__ == "__main__":
     main()
