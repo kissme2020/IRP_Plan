@@ -2310,6 +2310,263 @@ def page_import_ai_review():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PAGE 6: ORIGINAL DASHBOARD
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def page_original_dashboard():
+    """Original Dashboard — Portfolio overview, progress, and goal tracking"""
+    st.title("📊 Dashboard")
+
+    data = load_data()
+    progress = calculate_progress(data)
+    years_remaining, months_remaining, days_remaining = calculate_time_remaining()
+
+    # ── Key Metrics Row ──────────────────────────────────────────────────────
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric(
+            "💰 Current Balance",
+            f"{progress['current']/1_000_000:.1f}M KRW",
+            help="Total portfolio value from holdings"
+        )
+    with col2:
+        st.metric(
+            "🎯 Target Goal",
+            f"{progress['target_goal']/1_000_000:.0f}M KRW",
+            delta=f"{progress['remaining_to_goal']/1_000_000:.1f}M remaining",
+            delta_color="inverse"
+        )
+    with col3:
+        prob, prob_label = get_success_probability(progress['current'])
+        st.metric(
+            "📈 Success Probability",
+            f"{prob:.0f}%",
+            delta=prob_label,
+            delta_color="normal" if prob >= 80 else "inverse"
+        )
+    with col4:
+        st.metric(
+            "⏳ Time Remaining",
+            f"{years_remaining:.1f} years",
+            delta=f"{days_remaining} days",
+            delta_color="off"
+        )
+
+    st.divider()
+
+    # ── Progress Toward Goal ─────────────────────────────────────────────────
+    st.subheader("🏁 Progress Toward Goal")
+
+    col_left, col_right = st.columns([2, 1])
+
+    with col_left:
+        # Progress bar using plotly gauge
+        fig_gauge = go.Figure(go.Indicator(
+            mode="gauge+number+delta",
+            value=progress['progress_goal'],
+            number={'suffix': '%', 'font': {'size': 48}},
+            delta={'reference': 100, 'relative': False, 'suffix': '%'},
+            gauge={
+                'axis': {'range': [0, 100], 'ticksuffix': '%'},
+                'bar': {'color': '#2196F3'},
+                'steps': [
+                    {'range': [0, 50], 'color': '#ffebee'},
+                    {'range': [50, 75], 'color': '#fff3e0'},
+                    {'range': [75, 100], 'color': '#e8f5e9'},
+                ],
+                'threshold': {
+                    'line': {'color': '#4CAF50', 'width': 4},
+                    'thickness': 0.75,
+                    'value': 100
+                }
+            },
+            title={'text': 'Progress to 400M KRW Goal'}
+        ))
+        fig_gauge.update_layout(height=300, margin=dict(t=60, b=20, l=40, r=40))
+        st.plotly_chart(fig_gauge, use_container_width=True)
+
+    with col_right:
+        # Minimum floor progress
+        st.markdown("#### Floor Target (300M)")
+        floor_pct = progress['progress_floor']
+        st.progress(min(floor_pct / 100, 1.0), text=f"{floor_pct:.1f}%")
+
+        st.markdown("#### Balance Breakdown")
+        st.write(f"**Current:** ₩{progress['current']:,.0f}")
+        st.write(f"**Goal:** ₩{progress['target_goal']:,.0f}")
+        st.write(f"**Floor:** ₩{progress['floor']:,.0f}")
+        st.write(f"**Gap to Goal:** ₩{progress['remaining_to_goal']:,.0f}")
+
+    st.divider()
+
+    # ── Portfolio Allocation (current) ───────────────────────────────────────
+    st.subheader("🥧 Current Allocation vs Target")
+
+    # Get current holdings values
+    shares = data.get('shares', get_default_holdings())
+    prices = fetch_etf_prices()
+
+    holdings = {}
+    for asset in ALLOCATION_TARGET.keys():
+        num_shares = shares.get(asset, 0)
+        price = prices.get(asset, {}).get('price', 0)
+        if asset == 'Cash':
+            holdings[asset] = num_shares
+        else:
+            holdings[asset] = num_shares * price
+
+    portfolio_value = sum(holdings.values())
+
+    if portfolio_value > 0:
+        col_pie1, col_pie2 = st.columns(2)
+
+        with col_pie1:
+            current_pcts = {k: (v / portfolio_value) * 100 for k, v in holdings.items() if v > 0}
+            fig_current = px.pie(
+                names=list(current_pcts.keys()),
+                values=list(current_pcts.values()),
+                title="Current Allocation",
+                hole=0.4
+            )
+            fig_current.update_layout(height=350, margin=dict(t=40, b=20))
+            st.plotly_chart(fig_current, use_container_width=True)
+
+        with col_pie2:
+            target_pcts = {k: v * 100 for k, v in ALLOCATION_TARGET.items() if v > 0}
+            fig_target = px.pie(
+                names=list(target_pcts.keys()),
+                values=list(target_pcts.values()),
+                title="Target Allocation",
+                hole=0.4
+            )
+            fig_target.update_layout(height=350, margin=dict(t=40, b=20))
+            st.plotly_chart(fig_target, use_container_width=True)
+
+        # Drift table
+        drift_data = []
+        for asset in ALLOCATION_TARGET.keys():
+            current_pct = (holdings.get(asset, 0) / portfolio_value) * 100
+            target_pct = ALLOCATION_TARGET[asset] * 100
+            drift = current_pct - target_pct
+            status = "✅" if abs(drift) <= 5 else "⚠️" if abs(drift) <= 10 else "🔴"
+            drift_data.append({
+                'Asset': asset,
+                'Current %': f"{current_pct:.1f}%",
+                'Target %': f"{target_pct:.1f}%",
+                'Drift': f"{drift:+.1f}%",
+                'Status': status
+            })
+        st.dataframe(pd.DataFrame(drift_data), use_container_width=True, hide_index=True)
+    else:
+        st.info("No holdings data available. Update your holdings in the Rebalancing Alerts page.")
+
+    st.divider()
+
+    # ── Projected Growth ─────────────────────────────────────────────────────
+    st.subheader("📈 Projected Growth to Retirement")
+
+    current_balance = progress['current'] if portfolio_value == 0 else portfolio_value
+    monthly_contrib = IRP_CONFIG['base_monthly']
+    target_cagr = IRP_CONFIG['target_cagr']
+    months_left = int(years_remaining * 12)
+
+    # Build month-by-month projection for multiple scenarios
+    scenarios = {
+        'Conservative (6%)': 6.0,
+        'Target (10.2%)': target_cagr * 100,
+        'Optimistic (15%)': 15.0,
+    }
+
+    projection_rows = []
+    for month in range(0, months_left + 1, 3):  # quarterly points
+        row = {'Month': month, 'Date': (datetime.now() + timedelta(days=month * 30.44)).strftime('%Y-%m')}
+        for label, annual_rate in scenarios.items():
+            from utils import calculate_future_value
+            fv = calculate_future_value(current_balance, monthly_contrib, annual_rate, month)
+            row[label] = fv
+        projection_rows.append(row)
+
+    df_proj = pd.DataFrame(projection_rows)
+
+    fig_proj = go.Figure()
+    colors = {'Conservative (6%)': '#FF9800', f'Target (10.2%)': '#2196F3', 'Optimistic (15%)': '#4CAF50'}
+    for label in scenarios:
+        fig_proj.add_trace(go.Scatter(
+            x=df_proj['Date'], y=df_proj[label],
+            mode='lines', name=label,
+            line=dict(color=colors.get(label, '#999'), width=2)
+        ))
+
+    # Goal & floor lines
+    fig_proj.add_hline(y=IRP_CONFIG['target_goal'], line_dash='dash', line_color='green',
+                       annotation_text='Goal: 400M')
+    fig_proj.add_hline(y=IRP_CONFIG['minimum_floor'], line_dash='dot', line_color='orange',
+                       annotation_text='Floor: 300M')
+
+    fig_proj.update_layout(
+        title='Portfolio Growth Scenarios (with 600K/month contributions)',
+        xaxis_title='Date', yaxis_title='Balance (KRW)',
+        height=420, legend=dict(orientation='h', yanchor='bottom', y=1.02),
+        yaxis=dict(tickformat=',.0f')
+    )
+    st.plotly_chart(fig_proj, use_container_width=True)
+
+    st.divider()
+
+    # ── Milestones ───────────────────────────────────────────────────────────
+    st.subheader("🏆 Milestones")
+
+    milestones = [
+        {'Milestone': '200M KRW', 'Value': 200_000_000},
+        {'Milestone': '250M KRW', 'Value': 250_000_000},
+        {'Milestone': '300M KRW (Floor)', 'Value': 300_000_000},
+        {'Milestone': '350M KRW', 'Value': 350_000_000},
+        {'Milestone': '400M KRW (Goal)', 'Value': 400_000_000},
+    ]
+
+    milestone_data = []
+    for m in milestones:
+        reached = current_balance >= m['Value']
+        milestone_data.append({
+            'Milestone': m['Milestone'],
+            'Target': f"₩{m['Value']:,.0f}",
+            'Status': '✅ Reached' if reached else '⬜ Pending',
+            'Gap': f"₩{max(0, m['Value'] - current_balance):,.0f}" if not reached else '—'
+        })
+
+    st.dataframe(pd.DataFrame(milestone_data), use_container_width=True, hide_index=True)
+
+    # ── Key Financial Metrics ────────────────────────────────────────────────
+    st.subheader("📋 Key Financial Metrics")
+
+    col_m1, col_m2, col_m3 = st.columns(3)
+
+    projected_at_retirement = project_balance_to_retirement(current_balance)
+
+    with col_m1:
+        st.metric("Projected at Retirement", f"{projected_at_retirement/1_000_000:.1f}M KRW")
+        required_monthly = (IRP_CONFIG['target_goal'] - current_balance) / max(months_left, 1)
+        st.metric("Required Monthly Savings", f"{required_monthly/1_000_000:.2f}M KRW",
+                  help="Monthly amount needed (without growth) to reach goal")
+
+    with col_m2:
+        from utils import calculate_cagr
+        if years_remaining > 0:
+            required_cagr = calculate_cagr(current_balance, IRP_CONFIG['target_goal'], years_remaining)
+        else:
+            required_cagr = 0
+        st.metric("Required CAGR to Goal", f"{required_cagr:.1f}%")
+        st.metric("Target CAGR", f"{IRP_CONFIG['target_cagr']*100:.1f}%")
+
+    with col_m3:
+        st.metric("Monthly Contribution", f"₩{IRP_CONFIG['base_monthly']:,.0f}")
+        st.metric("Annual Bonus (Expected)", f"₩{IRP_CONFIG['expected_annual_bonus']:,.0f}")
+        rsu_total_krw = IRP_CONFIG['rsu_value_usd'] * IRP_CONFIG['rsu_kwr_per_usd'] * IRP_CONFIG['rsu_after_tax_pct']
+        st.metric("RSU Total (After Tax)", f"₩{rsu_total_krw:,.0f}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # MAIN APP (All Original Pages + 3 New Pages)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2370,10 +2627,12 @@ def main():
         page_export_snapshot()
     elif page == "Import AI Review":
         page_import_ai_review()
-    # Note: Original pages would go here (condensed for space)
+    elif page == "Original Dashboard":
+        page_original_dashboard()
+    # Note: Remaining original pages to be implemented
     else:
         st.write("# Original Pages")
-        st.info("Original Dashboard, Track Deposits, RSU Tracking, Projections, and Reports pages are available")
+        st.info("Track Deposits, RSU Tracking, Projections, and Reports pages are coming soon.")
 
 if __name__ == "__main__":
     main()
