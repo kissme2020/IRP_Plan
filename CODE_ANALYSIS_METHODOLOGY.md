@@ -341,6 +341,7 @@ WHAT YOUR APP LACKS (❌ MISSING):
    ⚠️  Code references transactions
    ⚠️  Unclear if UI page exists for data entry
    ⚠️  Need to verify transaction form
+   ✅  Fixed (2026-03-13): Shares column mixed-type Arrow error — all DataFrame Shares values now cast to str()
 
 3. SETTINGS/CONFIGURATION UI
    ⚠️  Rebalancing frequency (90 days)

@@ -426,6 +426,7 @@ FEATURES IMPLEMENTED:
   ✅ Specific recommendations (which asset, how much)
   ✅ Shares-based trade display (KRW → shares via krw_to_shares in utils.py)
   ✅ Arrow serialization fix (mixed int/str columns cast to str for Streamlit)
+     → Fixed 2026-03-13: Shares column in transaction & gains tables now uses str() for all values
   ✅ Time-based scheduling (every 90 days)
   ✅ History tracking (all past rebalancing)
   ✅ AI integration (smart recommendations)

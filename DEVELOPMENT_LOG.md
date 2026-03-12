@@ -156,3 +156,17 @@ Each page follows: **Plan → Code → Test → User Verify → Update MDs → C
 - Falls back to `get_default_holdings_values()` if no values data exists
 - Updated `main()` routing
 - **All 10 sidebar pages now fully implemented**
+
+---
+
+## Bug Fixes
+
+### Arrow Serialization Error — Mixed Types in 'Shares' Column
+- **Date:** 2026-03-13
+- **Error:** `pyarrow.lib.ArrowInvalid: Could not convert '-' with type str: tried to convert to int64 — Conversion failed for column Shares with type object`
+- **Root Cause:** The `Shares` column in DataFrames passed to `st.dataframe()` contained mixed types — `'-'` (string) for cash transactions (contributions/dividends) alongside raw integers for buy/sell transactions. PyArrow cannot serialize columns with mixed int/str types.
+- **Files Changed:** `src/irp_web_app_enhanced.py`
+- **Fix:** Cast all `Shares` values to `str()` before building DataFrames:
+  - **Line ~1375** (Transaction History table): `str(t['shares'])` instead of raw `t['shares']`
+  - **Line ~1519** (Gains/Losses table): `str(data_item['shares'])` instead of raw `data_item['shares']`
+- **Impact:** Resolved repeated Arrow serialization warnings in Streamlit console

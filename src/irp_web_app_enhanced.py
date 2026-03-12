@@ -1372,7 +1372,7 @@ def page_rebalancing_alerts():
                         'Date': t['date'],
                         'Asset': t['asset'],
                         'Type': type_labels.get(t['type'], t['type']),
-                        'Shares': '-' if is_cash else t['shares'],
+                        'Shares': '-' if is_cash else str(t['shares']),
                         'Price': f"₩{t['price_per_share']:,.0f}" if not is_cash else '-',
                         'Total': f"₩{t['total_cost']:,.0f}",
                         'Notes': t.get('notes', '')
@@ -1516,7 +1516,7 @@ def page_rebalancing_alerts():
             for asset, data_item in gains_data.items():
                 gains_table.append({
                     'Asset': asset,
-                    'Shares': data_item['shares'],
+                    'Shares': str(data_item['shares']),
                     'Avg Cost': f"₩{data_item['avg_cost_basis']:,.0f}",
                     'Current Price': f"₩{data_item['current_price']:,.0f}",
                     'Total Cost': f"₩{data_item['total_cost']:,.0f}",
