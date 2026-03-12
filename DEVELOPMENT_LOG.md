@@ -14,7 +14,7 @@ Each page follows: **Plan → Code → Test → User Verify → Update MDs → C
 |---|------|--------|-------------|----------------|--------|
 | 1 | Original Dashboard | ✅ Complete | 2026-03-12 | 2026-03-12 | — |
 | 2 | Track Deposits | ✅ Complete | 2026-03-12 | 2026-03-12 | — |
-| 3 | RSU Tracking | ⬜ Not Started | — | — | — |
+| 3 | RSU Tracking | 🔄 In Progress | 2026-03-12 | — | — |
 | 4 | Projections | ⬜ Not Started | — | — | — |
 | 5 | Reports | ⬜ Not Started | — | — | — |
 
@@ -80,7 +80,26 @@ Each page follows: **Plan → Code → Test → User Verify → Update MDs → C
 ---
 
 ## Page 3: RSU Tracking
-_(To be planned)_
+
+### Plan
+- Summary metrics: total RSU value (USD & KRW), vested/unvested counts
+- Vesting schedule table: tranche, date, USD, Gross KRW, Net KRW, status with countdown
+- Mark as vested / undo vesting functionality
+- Vesting timeline: bar chart by status + progress donut
+- IRP impact: gap coverage %, gap after all RSU
+
+### Backend Functions Used
+- `_get_rsu_data()` — new helper, initializes 4 Keysight tranches if empty
+- `save_data()` — persist vesting status changes
+- `DEFAULT_RSU_SCHEDULE` — new constant with 4 tranches ($7,614 each)
+- `IRP_CONFIG` for exchange rate (1,250) and after-tax % (70%)
+
+### Implementation Notes
+- **Date:** 2026-03-12
+- Added `page_rsu_tracking()` function (~170 lines) + helper `_get_rsu_data()`
+- Auto-initializes default RSU schedule on first visit
+- Stores in `data['rsu_vesting']` in irp_tracker_data.json
+- Updated `main()` routing
 
 ---
 

@@ -810,7 +810,25 @@ def record_rebalance_date():
 def calculate_total_deposits(data):
     """Calculate total deposits"""
     monthly_total = sum(e['total_deposit'] for e in data['monthly_entries'])
-    rsu_total = sum(e['net_kwr'] for e in data['rsu_vesting'])
+    # RSU: calculate net KRW from share-based data
+    rsu_settings = data.get('rsu_settings', {})
+    exchange_rate = rsu_settings.get('exchange_rate', IRP_CONFIG['rsu_kwr_per_usd'])
+    tax_rate_saved = rsu_settings.get('tax_rate_pct', None)
+    if tax_rate_saved is not None:
+        after_tax_pct = (100 - tax_rate_saved) / 100
+    else:
+        after_tax_pct = IRP_CONFIG['rsu_after_tax_pct']
+
+    rsu_total = 0
+    for e in data.get('rsu_vesting', []):
+        if 'net_kwr' in e:
+            rsu_total += e['net_kwr']
+        else:
+            shares = e.get('shares', 0)
+            price = e.get('vest_price_usd', None) if e.get('vested') else None
+            if price is None:
+                price = e.get('grant_price_usd', 0)
+            rsu_total += shares * price * exchange_rate * after_tax_pct
     return monthly_total, rsu_total, monthly_total + rsu_total
 
 def calculate_current_balance(data):
@@ -2812,6 +2830,452 @@ def _render_deposit_table(items, table_key):
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PAGE 8: RSU TRACKING
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Default RSU schedule — 4 Keysight tranches (share-based)
+# Total grant: ~194 shares at ~$157 grant price ≈ $30,458
+DEFAULT_RSU_SCHEDULE = [
+    {'tranche': 1, 'date': '2027-03', 'shares': 49, 'grant_price_usd': 157.0, 'vest_price_usd': None, 'vested': False, 'vested_date': None, 'notes': ''},
+    {'tranche': 2, 'date': '2028-03', 'shares': 49, 'grant_price_usd': 157.0, 'vest_price_usd': None, 'vested': False, 'vested_date': None, 'notes': ''},
+    {'tranche': 3, 'date': '2029-03', 'shares': 48, 'grant_price_usd': 157.0, 'vest_price_usd': None, 'vested': False, 'vested_date': None, 'notes': ''},
+    {'tranche': 4, 'date': '2030-03', 'shares': 48, 'grant_price_usd': 157.0, 'vest_price_usd': None, 'vested': False, 'vested_date': None, 'notes': ''},
+]
+
+
+def _get_rsu_data(data):
+    """Get RSU vesting data, initializing defaults if empty.
+    Migrates old amount-only format to share-based format."""
+    rsu_list = data.get('rsu_vesting', [])
+    if not rsu_list:
+        rsu_list = [dict(r) for r in DEFAULT_RSU_SCHEDULE]
+        data['rsu_vesting'] = rsu_list
+        save_data(data)
+        return rsu_list
+
+    # Migrate old format (amount_usd only) → share-based
+    migrated = False
+    for r in rsu_list:
+        if 'shares' not in r:
+            old_amount = r.get('amount_usd', 7614)
+            est_price = 157.0
+            r['shares'] = round(old_amount / est_price)
+            r['grant_price_usd'] = est_price
+            r['vest_price_usd'] = None
+            r.setdefault('vested_date', None)
+            migrated = True
+
+    # Fix duplicate tranche numbers
+    seen = set()
+    for r in rsu_list:
+        if r['tranche'] in seen:
+            new_num = 1
+            all_nums = {x['tranche'] for x in rsu_list}
+            while new_num in all_nums or new_num in seen:
+                new_num += 1
+            r['tranche'] = new_num
+            migrated = True
+        seen.add(r['tranche'])
+
+    if migrated:
+        data['rsu_vesting'] = rsu_list
+        save_data(data)
+
+    return rsu_list
+
+
+def _calc_rsu_value(r, exchange_rate, after_tax_pct):
+    """Calculate values for a single RSU tranche."""
+    shares = r.get('shares', 0)
+    grant_price = r.get('grant_price_usd', 0)
+    vest_price = r.get('vest_price_usd', None)
+
+    effective_price = vest_price if (r['vested'] and vest_price) else grant_price
+    gross_usd = shares * effective_price
+    gross_krw = gross_usd * exchange_rate
+    net_krw = gross_krw * after_tax_pct
+
+    if r['vested'] and vest_price and grant_price > 0:
+        gain_usd = (vest_price - grant_price) * shares
+        gain_pct = ((vest_price / grant_price) - 1) * 100
+    else:
+        gain_usd = 0
+        gain_pct = 0
+
+    return {
+        'shares': shares,
+        'grant_price': grant_price,
+        'vest_price': vest_price,
+        'effective_price': effective_price,
+        'gross_usd': gross_usd,
+        'gross_krw': gross_krw,
+        'net_krw': net_krw,
+        'gain_usd': gain_usd,
+        'gain_pct': gain_pct,
+    }
+
+
+def page_rsu_tracking():
+    """RSU Tracking — Keysight RSU vesting schedule with share-based tracking"""
+    st.title("📈 RSU Tracking")
+
+    data = load_data()
+    rsu_list = _get_rsu_data(data)
+
+    # Exchange rate & tax config — load saved settings if available
+    rsu_settings = data.get('rsu_settings', {})
+    exchange_rate = rsu_settings.get('exchange_rate', IRP_CONFIG['rsu_kwr_per_usd'])
+    tax_rate_saved = rsu_settings.get('tax_rate_pct', None)
+    if tax_rate_saved is not None:
+        after_tax_pct = (100 - tax_rate_saved) / 100
+    else:
+        after_tax_pct = IRP_CONFIG['rsu_after_tax_pct']
+    tax_rate_pct = (1 - after_tax_pct) * 100
+
+    # ── Summary Metrics ──────────────────────────────────────────────────────
+    total_shares = sum(r.get('shares', 0) for r in rsu_list)
+    vested_shares = sum(r.get('shares', 0) for r in rsu_list if r['vested'])
+    unvested_shares = total_shares - vested_shares
+    vested_count = sum(1 for r in rsu_list if r['vested'])
+
+    total_vals = [_calc_rsu_value(r, exchange_rate, after_tax_pct) for r in rsu_list]
+    total_gross_usd = sum(v['gross_usd'] for v in total_vals)
+    vested_gross_usd = sum(v['gross_usd'] for v, r in zip(total_vals, rsu_list) if r['vested'])
+    unvested_gross_usd = total_gross_usd - vested_gross_usd
+    total_net_krw = sum(v['net_krw'] for v in total_vals)
+    unvested_net_krw = sum(v['net_krw'] for v, r in zip(total_vals, rsu_list) if not r['vested'])
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("📊 Total Shares", f"{total_shares:,}",
+                  help=f"Estimated gross: ${total_gross_usd:,.0f}")
+    with col2:
+        st.metric("✅ Vested", f"{vested_shares:,} shares",
+                  delta=f"{vested_count}/{len(rsu_list)} tranches")
+    with col3:
+        st.metric("⏳ Unvested", f"{unvested_shares:,} shares",
+                  delta=f"{len(rsu_list) - vested_count} remaining", delta_color="off")
+    with col4:
+        st.metric("💰 After-Tax Total (KRW)", f"₩{total_net_krw:,.0f}",
+                  help=f"Tax: {tax_rate_pct:.0f}% | Rate: ₩{exchange_rate:,}/USD")
+
+    st.divider()
+
+    # ── Vesting Schedule Table ───────────────────────────────────────────────
+    st.subheader("📅 Vesting Schedule")
+    st.caption(f"Exchange Rate: ₩{exchange_rate:,}/USD | Tax Rate: {tax_rate_pct:.0f}% | After-Tax: {after_tax_pct*100:.0f}%")
+
+    schedule_data = []
+    today = datetime.now()
+
+    for r, val in zip(rsu_list, total_vals):
+        vest_year, vest_month = int(r['date'][:4]), int(r['date'][5:7])
+        vest_date = datetime(vest_year, vest_month, 1)
+        days_until = (vest_date - today).days
+
+        if r['vested']:
+            time_status = '✅ Vested'
+        elif days_until <= 0:
+            time_status = '🟡 Ready to vest'
+        elif days_until <= 90:
+            time_status = f'🔶 {days_until}d away'
+        else:
+            months_away = days_until // 30
+            time_status = f'⏳ {months_away}mo away'
+
+        price_display = f"${val['vest_price']:,.2f}" if val['vest_price'] else f"${val['grant_price']:,.2f} (est)"
+        gain_display = f"{val['gain_pct']:+.1f}%" if r['vested'] and val['vest_price'] else '—'
+
+        schedule_data.append({
+            'Tranche': f"#{r['tranche']}",
+            'Vest Date': r['date'],
+            'Shares': f"{val['shares']:,}",
+            'Grant Price': f"${val['grant_price']:,.2f}",
+            'Vest Price': price_display,
+            'Gross (USD)': f"${val['gross_usd']:,.0f}",
+            'Net (KRW)': f"₩{val['net_krw']:,.0f}",
+            'Gain': gain_display,
+            'Status': time_status,
+        })
+
+    st.dataframe(pd.DataFrame(schedule_data), use_container_width=True, hide_index=True)
+
+    st.divider()
+
+    # ── Manage RSU Tranches ──────────────────────────────────────────────────
+    st.subheader("✏️ Manage RSU Tranches")
+
+    tab_edit, tab_vest, tab_add, tab_delete, tab_settings = st.tabs([
+        "📝 Edit Tranche", "✅ Vesting Status", "➕ Add Tranche", "🗑️ Delete Tranche", "⚙️ Settings"
+    ])
+
+    # --- Tab 1: Edit Tranche Details ---
+    with tab_edit:
+        if rsu_list:
+            edit_options = {f"#{r['tranche']} — {r['date']} ({r.get('shares',0)} shares)": idx for idx, r in enumerate(rsu_list)}
+            selected_edit = st.selectbox("Select tranche to edit", options=list(edit_options.keys()), key="rsu_edit_select")
+            edit_idx = edit_options[selected_edit]
+            editing = rsu_list[edit_idx]
+
+            col_e1, col_e2 = st.columns(2)
+            with col_e1:
+                new_date = st.text_input("Vest Date (YYYY-MM)", value=editing['date'], key="rsu_edit_date")
+                new_shares = st.number_input("Number of Shares", value=editing.get('shares', 0),
+                                              min_value=0, step=1, key="rsu_edit_shares")
+            with col_e2:
+                new_grant_price = st.number_input("Grant Price (USD)", value=float(editing.get('grant_price_usd', 0)),
+                                                   min_value=0.0, step=1.0, format="%.2f", key="rsu_edit_grant_price")
+                new_notes = st.text_input("Notes", value=editing.get('notes', ''), key="rsu_edit_notes")
+
+            est_value = new_shares * new_grant_price
+            st.caption(f"Estimated value at grant price: **${est_value:,.0f}** → ₩{est_value * exchange_rate * after_tax_pct:,.0f} (after tax)")
+
+            if st.button("💾 Save Changes", key="rsu_save_edit", type="primary"):
+                rsu_list[edit_idx]['date'] = new_date
+                rsu_list[edit_idx]['shares'] = new_shares
+                rsu_list[edit_idx]['grant_price_usd'] = new_grant_price
+                rsu_list[edit_idx]['notes'] = new_notes
+                data['rsu_vesting'] = rsu_list
+                save_data(data)
+                st.success(f"✅ Tranche #{editing['tranche']} updated!")
+                st.rerun()
+        else:
+            st.info("No tranches to edit. Add one first.")
+
+    # --- Tab 2: Vesting Status ---
+    with tab_vest:
+        unvested = [r for r in rsu_list if not r['vested']]
+        vested = [r for r in rsu_list if r['vested']]
+
+        if unvested:
+            st.markdown("**Mark a tranche as vested** — enter the actual stock price at vesting:")
+            col_v1, col_v2 = st.columns(2)
+            with col_v1:
+                tranche_options = {f"#{r['tranche']} — {r['date']} ({r.get('shares',0)} shares @ ${r.get('grant_price_usd',0):,.2f})": r['tranche'] for r in unvested}
+                selected_tranche = st.selectbox("Select tranche", options=list(tranche_options.keys()), key="rsu_vest_select")
+            with col_v2:
+                sel_num = tranche_options[selected_tranche]
+                sel_r = next(r for r in rsu_list if r['tranche'] == sel_num)
+                vest_price_input = st.number_input(
+                    "Actual Vest Price (USD per share)",
+                    value=float(sel_r.get('grant_price_usd', 157.0)),
+                    min_value=0.01, step=1.0, format="%.2f",
+                    key="rsu_vest_price",
+                    help="The Keysight stock price on the vesting date"
+                )
+
+            preview_gross = sel_r.get('shares', 0) * vest_price_input
+            preview_net_krw = preview_gross * exchange_rate * after_tax_pct
+            preview_gain = ((vest_price_input / sel_r.get('grant_price_usd', 1)) - 1) * 100
+            st.caption(
+                f"Preview: {sel_r.get('shares',0)} shares × ${vest_price_input:,.2f} = "
+                f"**${preview_gross:,.0f}** → ₩{preview_net_krw:,.0f} after tax | "
+                f"Gain: {preview_gain:+.1f}% vs grant"
+            )
+
+            vest_notes = st.text_input("Notes (optional)", key="rsu_vest_notes",
+                                      placeholder="e.g., Sold immediately, deployed to bonds")
+
+            if st.button("✅ Mark as Vested", type="primary"):
+                for r in rsu_list:
+                    if r['tranche'] == sel_num:
+                        r['vested'] = True
+                        r['vest_price_usd'] = vest_price_input
+                        r['vested_date'] = datetime.now().strftime('%Y-%m-%d')
+                        if vest_notes:
+                            r['notes'] = vest_notes
+                        break
+                data['rsu_vesting'] = rsu_list
+                save_data(data)
+                st.success(f"✅ Tranche #{sel_num} vested at ${vest_price_input:,.2f}/share!")
+                st.rerun()
+        else:
+            st.success("🎉 All RSU tranches have been vested!")
+
+        if vested:
+            st.markdown("---")
+            st.markdown("**Undo Vesting:**")
+            undo_options = {f"#{r['tranche']} — {r['date']} ({r.get('shares',0)} shares, vested @ ${r.get('vest_price_usd',0):,.2f})": r['tranche'] for r in vested}
+            selected_undo = st.selectbox("Select tranche to undo", options=list(undo_options.keys()), key="rsu_undo_select")
+            if st.button("↩️ Mark as Unvested"):
+                tranche_num = undo_options[selected_undo]
+                for r in rsu_list:
+                    if r['tranche'] == tranche_num:
+                        r['vested'] = False
+                        r['vest_price_usd'] = None
+                        r.pop('vested_date', None)
+                        break
+                data['rsu_vesting'] = rsu_list
+                save_data(data)
+                st.success(f"↩️ Tranche #{tranche_num} marked as unvested.")
+                st.rerun()
+
+    # --- Tab 3: Add New Tranche ---
+    with tab_add:
+        st.markdown("Add a new RSU grant tranche (e.g., new annual grant).")
+        col_a1, col_a2 = st.columns(2)
+        with col_a1:
+            new_tranche_date = st.text_input("Vest Date (YYYY-MM)", value=f"{datetime.now().year + 1}-03", key="rsu_add_date")
+            new_tranche_shares = st.number_input("Number of Shares", value=49, min_value=1, step=1, key="rsu_add_shares")
+        with col_a2:
+            new_tranche_grant = st.number_input("Grant Price (USD)", value=157.0, min_value=0.01, step=1.0, format="%.2f", key="rsu_add_grant")
+            new_tranche_notes = st.text_input("Notes (optional)", key="rsu_add_notes", placeholder="e.g., 2026 annual grant")
+
+        # Auto-generate unique Tranche #
+        existing_nums = {r['tranche'] for r in rsu_list}
+        auto_tranche = 1
+        while auto_tranche in existing_nums:
+            auto_tranche += 1
+
+        est_val = new_tranche_shares * new_tranche_grant
+        st.caption(
+            f"Will be assigned **Tranche #{auto_tranche}** | "
+            f"Estimated value: {new_tranche_shares} × ${new_tranche_grant:,.2f} = **${est_val:,.0f}** → ₩{est_val * exchange_rate * after_tax_pct:,.0f} after tax"
+        )
+
+        if st.button("➕ Add Tranche", type="primary", key="rsu_add_btn"):
+            new_entry = {
+                'tranche': auto_tranche,
+                'date': new_tranche_date,
+                'shares': new_tranche_shares,
+                'grant_price_usd': new_tranche_grant,
+                'vest_price_usd': None,
+                'vested': False,
+                'vested_date': None,
+                'notes': new_tranche_notes,
+            }
+            rsu_list.append(new_entry)
+            rsu_list.sort(key=lambda x: (x['date'], x['tranche']))
+            data['rsu_vesting'] = rsu_list
+            save_data(data)
+            st.success(f"✅ Tranche #{auto_tranche} added ({new_tranche_shares} shares @ ${new_tranche_grant:,.2f})!")
+            st.rerun()
+
+    # --- Tab 4: Delete Tranche ---
+    with tab_delete:
+        if rsu_list:
+            del_options = {f"#{r['tranche']} — {r['date']} ({r.get('shares',0)} sh) {'✅' if r['vested'] else '⏳'}": idx for idx, r in enumerate(rsu_list)}
+            selected_del = st.selectbox("Select tranche to delete", options=list(del_options.keys()), key="rsu_del_select")
+            st.warning("⚠️ This action cannot be undone.")
+            if st.button("🗑️ Delete Tranche", key="rsu_del_btn"):
+                del_idx = del_options[selected_del]
+                removed = rsu_list.pop(del_idx)
+                data['rsu_vesting'] = rsu_list
+                save_data(data)
+                st.success(f"✅ Tranche #{removed['tranche']} deleted.")
+                st.rerun()
+        else:
+            st.info("No tranches to delete.")
+
+    # --- Tab 5: Settings ---
+    with tab_settings:
+        st.markdown("Adjust exchange rate and tax assumptions for KRW calculations.")
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            new_exchange_rate = st.number_input(
+                "USD/KRW Exchange Rate",
+                value=exchange_rate,
+                min_value=800, max_value=2000, step=10,
+                key="rsu_exchange_rate",
+                help="Current rate used for USD → KRW conversion"
+            )
+        with col_s2:
+            new_tax_pct = st.number_input(
+                "Tax Rate (%)",
+                value=int(tax_rate_pct),
+                min_value=0, max_value=50, step=1,
+                key="rsu_tax_rate",
+                help="Withholding + income tax on RSU vesting"
+            )
+
+        if st.button("💾 Save Settings", key="rsu_save_settings"):
+            IRP_CONFIG['rsu_kwr_per_usd'] = new_exchange_rate
+            IRP_CONFIG['rsu_after_tax_pct'] = (100 - new_tax_pct) / 100
+            # Persist to data file
+            data['rsu_settings'] = {
+                'exchange_rate': new_exchange_rate,
+                'tax_rate_pct': new_tax_pct,
+            }
+            save_data(data)
+            st.success(f"✅ Settings saved: ₩{new_exchange_rate:,}/USD, {new_tax_pct}% tax")
+            st.rerun()
+
+    st.divider()
+
+    # ── Vesting Timeline ────────────────────────────────────────────────────
+    st.subheader("📊 Vesting Timeline")
+
+    col_chart1, col_chart2 = st.columns(2)
+
+    with col_chart1:
+        # Bar chart: shares per tranche with vested/unvested color
+        timeline_rows = []
+        sorted_rsu = sorted(rsu_list, key=lambda x: x['date'])
+        sorted_vals = [_calc_rsu_value(r, exchange_rate, after_tax_pct) for r in sorted_rsu]
+        for r, val in zip(sorted_rsu, sorted_vals):
+            timeline_rows.append({
+                'Date': r['date'],
+                'Shares': val['shares'],
+                'Value (USD)': val['gross_usd'],
+                'Status': 'Vested' if r['vested'] else 'Unvested',
+            })
+
+        df_timeline = pd.DataFrame(timeline_rows)
+        colors_map = {'Vested': '#4CAF50', 'Unvested': '#90CAF9'}
+        fig_bar = go.Figure()
+        for status in ['Vested', 'Unvested']:
+            mask = df_timeline['Status'] == status
+            if mask.any():
+                fig_bar.add_trace(go.Bar(
+                    x=df_timeline.loc[mask, 'Date'],
+                    y=df_timeline.loc[mask, 'Shares'],
+                    name=status,
+                    marker_color=colors_map[status],
+                    text=df_timeline.loc[mask, 'Shares'],
+                    textposition='auto'
+                ))
+        fig_bar.update_layout(
+            title='Shares per Tranche',
+            xaxis_title='Vesting Date', yaxis_title='Shares',
+            height=320, barmode='stack',
+        )
+        st.plotly_chart(fig_bar, use_container_width=True)
+
+    with col_chart2:
+        # Progress donut
+        fig_pie = go.Figure(go.Pie(
+            labels=['Vested', 'Unvested'],
+            values=[vested_shares, unvested_shares],
+            marker=dict(colors=['#4CAF50', '#90CAF9']),
+            hole=0.5,
+            textinfo='label+percent+value',
+            texttemplate='%{label}<br>%{value} shares<br>%{percent}'
+        ))
+        fig_pie.update_layout(title='Vesting Progress', height=320)
+        st.plotly_chart(fig_pie, use_container_width=True)
+
+    st.divider()
+
+    # ── IRP Impact Summary ──────────────────────────────────────────────────
+    st.subheader("🎯 Impact on IRP Goal")
+
+    progress = calculate_progress(data)
+    gap = progress['remaining_to_goal']
+
+    col_i1, col_i2, col_i3 = st.columns(3)
+    with col_i1:
+        st.metric("Current Gap to Goal", f"₩{gap:,.0f}")
+    with col_i2:
+        coverage_pct = (unvested_net_krw / gap * 100) if gap > 0 else 100
+        st.metric("RSU Coverage of Gap", f"{coverage_pct:.1f}%",
+                  help=f"Unvested RSU (₩{unvested_net_krw:,.0f}) as % of remaining gap")
+    with col_i3:
+        gap_after_rsu = max(0, gap - unvested_net_krw)
+        st.metric("Gap After All RSU", f"₩{gap_after_rsu:,.0f}",
+                  delta=f"₩{-unvested_net_krw:,.0f} from RSU", delta_color="normal")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # MAIN APP (All Original Pages + 3 New Pages)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2876,10 +3340,12 @@ def main():
         page_original_dashboard()
     elif page == "Track Deposits":
         page_track_deposits()
+    elif page == "RSU Tracking":
+        page_rsu_tracking()
     # Note: Remaining original pages to be implemented
     else:
         st.write("# Original Pages")
-        st.info("RSU Tracking, Projections, and Reports pages are coming soon.")
+        st.info("Projections and Reports pages are coming soon.")
 
 if __name__ == "__main__":
     main()
