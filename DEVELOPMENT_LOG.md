@@ -13,7 +13,7 @@ Each page follows: **Plan → Code → Test → User Verify → Update MDs → C
 | # | Page | Status | Date Started | Date Completed | Commit |
 |---|------|--------|-------------|----------------|--------|
 | 1 | Original Dashboard | ✅ Complete | 2026-03-12 | 2026-03-12 | — |
-| 2 | Track Deposits | ⬜ Not Started | — | — | — |
+| 2 | Track Deposits | ✅ Complete | 2026-03-12 | 2026-03-12 | — |
 | 3 | RSU Tracking | ⬜ Not Started | — | — | — |
 | 4 | Projections | ⬜ Not Started | — | — | — |
 | 5 | Reports | ⬜ Not Started | — | — | — |
@@ -54,7 +54,28 @@ Each page follows: **Plan → Code → Test → User Verify → Update MDs → C
 ---
 
 ## Page 2: Track Deposits
-_(To be planned)_
+
+### Plan
+- Summary metrics: total contributions, dividends, inflows, record count
+- Add new deposit form: base (600K), bonus, other with date picker
+- Deposit history table with tabs: All Inflows, Contributions, Dividends
+- Delete capability per record
+- Monthly bar chart (stacked contributions + dividends)
+- Cumulative inflow line chart
+- Deposit statistics: average, max, min, vs expected
+
+### Backend Functions Used
+- `add_transaction()` — reuses existing transaction system (type: contribution)
+- `delete_transaction()` — existing delete by ID
+- `get_transactions()` — filter by type
+- Uses `transactions` list in irp_tracker_data.json (consistent with Rebalancing page)
+
+### Implementation Notes
+- **Date:** 2026-03-12
+- Added `page_track_deposits()` function (~200 lines) + helper `_render_deposit_table()`
+- Reuses existing transaction system rather than creating parallel deposit storage
+- Contributions use `price_per_share` field for amount (matching existing data pattern)
+- Updated `main()` routing
 
 ---
 

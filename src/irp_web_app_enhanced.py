@@ -2567,6 +2567,251 @@ def page_original_dashboard():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# PAGE 7: TRACK DEPOSITS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def page_track_deposits():
+    """Track Deposits — Monthly contributions, bonuses, and deposit history"""
+    st.title("💰 Track Deposits")
+
+    data = load_data()
+    transactions = data.get('transactions', [])
+
+    # Filter deposit-related transactions (contributions & dividends)
+    deposits = [t for t in transactions if t['type'] in ('contribution', 'dividend')]
+    deposits.sort(key=lambda x: x['date'], reverse=True)
+
+    contributions = [t for t in transactions if t['type'] == 'contribution']
+    dividends = [t for t in transactions if t['type'] == 'dividend']
+
+    # ── Summary Metrics ──────────────────────────────────────────────────────
+    total_contributions = sum(t.get('price_per_share', 0) for t in contributions)
+    total_dividends = sum(t.get('price_per_share', 0) for t in dividends)
+    total_inflows = total_contributions + total_dividends
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("📥 Total Contributions", f"₩{total_contributions:,.0f}")
+    with col2:
+        st.metric("📊 Total Dividends", f"₩{total_dividends:,.0f}")
+    with col3:
+        st.metric("💵 Total Inflows", f"₩{total_inflows:,.0f}")
+    with col4:
+        deposit_count = len(deposits)
+        st.metric("📋 Total Records", f"{deposit_count}")
+
+    st.divider()
+
+    # ── Add New Deposit ──────────────────────────────────────────────────────
+    st.subheader("➕ Record New Deposit")
+
+    with st.expander("Click to add a new deposit", expanded=False):
+        col_a, col_b, col_c = st.columns(3)
+
+        DEPOSIT_TYPES = {
+            'base': '📅 Monthly Base (600K)',
+            'bonus': '🎁 Quarterly/Annual Bonus',
+            'other': '📦 Other Deposit',
+        }
+
+        with col_a:
+            deposit_type = st.selectbox(
+                "Deposit Type",
+                options=['base', 'bonus', 'other'],
+                format_func=lambda x: DEPOSIT_TYPES[x],
+                key="dep_type"
+            )
+
+        with col_b:
+            default_amount = 600_000 if deposit_type == 'base' else (15_000_000 if deposit_type == 'bonus' else 100_000)
+            deposit_amount = st.number_input(
+                "Amount (KRW)",
+                min_value=1,
+                value=default_amount,
+                step=100_000,
+                key="dep_amount"
+            )
+
+        with col_c:
+            deposit_date = st.date_input(
+                "Deposit Date",
+                value=datetime.now(),
+                key="dep_date"
+            )
+
+        deposit_notes = st.text_input("Notes (optional)", key="dep_notes",
+                                       placeholder=f"e.g., {deposit_type} deposit for {deposit_date.strftime('%Y-%m') if hasattr(deposit_date, 'strftime') else ''}")
+
+        if st.button("💾 Record Deposit", type="primary"):
+            note_text = deposit_notes or f"{DEPOSIT_TYPES[deposit_type]} deposit"
+            new_trans = add_transaction(
+                asset='Cash',
+                trans_type='contribution',
+                date_str=deposit_date.strftime('%Y-%m-%d'),
+                shares=0,
+                price_per_share=deposit_amount,
+                notes=note_text
+            )
+            st.success(f"✅ Recorded ₩{deposit_amount:,.0f} deposit on {deposit_date}")
+            st.rerun()
+
+    st.divider()
+
+    # ── Deposit History Table ────────────────────────────────────────────────
+    st.subheader("📋 Deposit History")
+
+    if deposits:
+        tab_all, tab_contrib, tab_div = st.tabs(["All Inflows", "Contributions", "Dividends"])
+
+        with tab_all:
+            _render_deposit_table(deposits, "all")
+
+        with tab_contrib:
+            if contributions:
+                _render_deposit_table(sorted(contributions, key=lambda x: x['date'], reverse=True), "contributions")
+            else:
+                st.info("No contributions recorded yet.")
+
+        with tab_div:
+            if dividends:
+                _render_deposit_table(sorted(dividends, key=lambda x: x['date'], reverse=True), "dividends")
+            else:
+                st.info("No dividends recorded yet.")
+
+        st.divider()
+
+        # ── Monthly Trend Chart ──────────────────────────────────────────────
+        st.subheader("📈 Monthly Inflow Trends")
+
+        # Aggregate by month
+        monthly_data = {}
+        for t in deposits:
+            month_key = t['date'][:7]  # YYYY-MM
+            amount = t.get('price_per_share', 0)
+            if month_key not in monthly_data:
+                monthly_data[month_key] = {'Contributions': 0, 'Dividends': 0}
+            if t['type'] == 'contribution':
+                monthly_data[month_key]['Contributions'] += amount
+            elif t['type'] == 'dividend':
+                monthly_data[month_key]['Dividends'] += amount
+
+        if monthly_data:
+            months_sorted = sorted(monthly_data.keys())
+            chart_rows = []
+            cumulative = 0
+            for m in months_sorted:
+                contrib = monthly_data[m]['Contributions']
+                div = monthly_data[m]['Dividends']
+                cumulative += contrib + div
+                chart_rows.append({
+                    'Month': m,
+                    'Contributions': contrib,
+                    'Dividends': div,
+                    'Total': contrib + div,
+                    'Cumulative': cumulative,
+                })
+
+            df_chart = pd.DataFrame(chart_rows)
+
+            # Bar chart: monthly breakdown
+            fig_bar = go.Figure()
+            fig_bar.add_trace(go.Bar(
+                x=df_chart['Month'], y=df_chart['Contributions'],
+                name='Contributions', marker_color='#2196F3'
+            ))
+            fig_bar.add_trace(go.Bar(
+                x=df_chart['Month'], y=df_chart['Dividends'],
+                name='Dividends', marker_color='#4CAF50'
+            ))
+            fig_bar.update_layout(
+                title='Monthly Inflows by Type',
+                xaxis_title='Month', yaxis_title='Amount (KRW)',
+                barmode='stack', height=350,
+                yaxis=dict(tickformat=',.0f')
+            )
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+            # Line chart: cumulative inflows
+            fig_cum = go.Figure()
+            fig_cum.add_trace(go.Scatter(
+                x=df_chart['Month'], y=df_chart['Cumulative'],
+                mode='lines+markers', name='Cumulative Inflows',
+                line=dict(color='#FF9800', width=2),
+                fill='tozeroy', fillcolor='rgba(255,152,0,0.1)'
+            ))
+            fig_cum.update_layout(
+                title='Cumulative Inflows Over Time',
+                xaxis_title='Month', yaxis_title='Cumulative (KRW)',
+                height=300, yaxis=dict(tickformat=',.0f')
+            )
+            st.plotly_chart(fig_cum, use_container_width=True)
+
+        st.divider()
+
+        # ── Monthly Statistics ───────────────────────────────────────────────
+        st.subheader("📊 Deposit Statistics")
+
+        if contributions:
+            contrib_amounts = [t.get('price_per_share', 0) for t in contributions]
+            col_s1, col_s2, col_s3, col_s4 = st.columns(4)
+            with col_s1:
+                st.metric("Avg Contribution", f"₩{sum(contrib_amounts)/len(contrib_amounts):,.0f}")
+            with col_s2:
+                st.metric("Max Contribution", f"₩{max(contrib_amounts):,.0f}")
+            with col_s3:
+                st.metric("Min Contribution", f"₩{min(contrib_amounts):,.0f}")
+            with col_s4:
+                # Expected vs actual
+                months_active = len(set(t['date'][:7] for t in contributions))
+                expected = months_active * IRP_CONFIG['base_monthly']
+                pct = (total_contributions / expected * 100) if expected > 0 else 0
+                st.metric("vs Expected", f"{pct:.0f}%",
+                          delta=f"₩{total_contributions - expected:+,.0f}",
+                          delta_color="normal" if total_contributions >= expected else "inverse")
+    else:
+        st.info("No deposits recorded yet. Use the form above or record contributions in the Rebalancing Alerts → Transaction History section.")
+
+        st.markdown("""
+        **Tip:** The recommended workflow is:
+        1. Record your monthly 600K IRP deposit here
+        2. Record quarterly bonuses when received
+        3. Track dividends as they arrive in your account
+        """)
+
+
+def _render_deposit_table(items, table_key):
+    """Helper to render a deposit/dividend table with delete capability"""
+    TYPE_ICONS = {
+        'contribution': '💰',
+        'dividend': '📊',
+    }
+    table_data = []
+    for t in items:
+        icon = TYPE_ICONS.get(t['type'], '📦')
+        table_data.append({
+            'Date': t['date'],
+            'Type': f"{icon} {t['type'].title()}",
+            'Asset': t.get('asset', 'Cash'),
+            'Amount (KRW)': f"₩{t.get('price_per_share', 0):,.0f}",
+            'Notes': t.get('notes', ''),
+            'ID': t['id'],
+        })
+
+    df = pd.DataFrame(table_data)
+    st.dataframe(df.drop(columns=['ID']), use_container_width=True, hide_index=True)
+
+    # Delete functionality
+    with st.expander(f"🗑️ Delete a record", expanded=False):
+        if table_data:
+            delete_options = {f"{t['Date']} | {t['Type']} | {t['Amount (KRW)']}": t['ID'] for t in table_data}
+            selected = st.selectbox("Select record to delete", options=list(delete_options.keys()), key=f"del_{table_key}")
+            if st.button("🗑️ Delete Selected", key=f"del_btn_{table_key}"):
+                delete_transaction(delete_options[selected])
+                st.success("✅ Record deleted.")
+                st.rerun()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # MAIN APP (All Original Pages + 3 New Pages)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2629,10 +2874,12 @@ def main():
         page_import_ai_review()
     elif page == "Original Dashboard":
         page_original_dashboard()
+    elif page == "Track Deposits":
+        page_track_deposits()
     # Note: Remaining original pages to be implemented
     else:
         st.write("# Original Pages")
-        st.info("Track Deposits, RSU Tracking, Projections, and Reports pages are coming soon.")
+        st.info("RSU Tracking, Projections, and Reports pages are coming soon.")
 
 if __name__ == "__main__":
     main()
