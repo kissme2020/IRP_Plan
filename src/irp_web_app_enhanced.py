@@ -971,6 +971,8 @@ def page_market_dashboard():
             price_fmt = f"₩{price:,.2f}"
         elif info.get('category') == 'Bond':
             price_fmt = f"{price:.2f}%"
+        elif info.get('category') == 'Commodities':
+            price_fmt = f"${price:,.2f}"
         else:
             price_fmt = f"{price:,.2f}"
         

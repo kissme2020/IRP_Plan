@@ -281,7 +281,8 @@ WHAT YOUR APP HAS (✅ COMPLETE):
 
 2b. GLOBAL MARKET DATA (Added March 2026)
    ✅ yfinance integration (Yahoo Finance) via src/market_data.py
-   ✅ 8 live indices: S&P 500, NASDAQ, Dow Jones, KOSPI, KOSDAQ, VIX, US 10Y Yield, USD/KRW
+   ✅ 13 live indices: S&P 500, NASDAQ, Dow Jones, KOSPI, KOSDAQ, VIX, US 10Y Yield, USD/KRW, Gold, Crude Oil WTI, Silver, Copper, Natural Gas
+   ✅ Commodities category added (2026-03-13): Gold, Crude Oil WTI, Silver, Copper, Natural Gas
    ✅ Hybrid approach: live API → 10-min Streamlit cache → mock fallback
    ✅ Batch download (all tickers in one API call, ~2-3 seconds)
    ✅ Source indicators (🟢 Live / 🟡 Fallback / 🔴 Mock)

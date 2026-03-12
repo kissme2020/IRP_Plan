@@ -170,3 +170,17 @@ Each page follows: **Plan → Code → Test → User Verify → Update MDs → C
   - **Line ~1375** (Transaction History table): `str(t['shares'])` instead of raw `t['shares']`
   - **Line ~1519** (Gains/Losses table): `str(data_item['shares'])` instead of raw `data_item['shares']`
 - **Impact:** Resolved repeated Arrow serialization warnings in Streamlit console
+
+### Raw Materials / Commodity Indices Added to Market Dashboard
+- **Date:** 2026-03-13
+- **Change:** Added 5 commodity indices to `MARKET_INDICES` in `src/market_data.py`
+  - Gold (`GC=F`) — Gold Futures (USD/oz)
+  - Crude Oil WTI (`CL=F`) — WTI Crude Oil Futures (USD/bbl)
+  - Silver (`SI=F`) — Silver Futures (USD/oz)
+  - Copper (`HG=F`) — Copper Futures (USD/lb)
+  - Natural Gas (`NG=F`) — Natural Gas Futures (USD/MMBtu)
+- **Files Changed:** `src/market_data.py`, `src/irp_web_app_enhanced.py`
+- **Details:**
+  - New `"Commodities"` category in `MARKET_INDICES` and `_MOCK_FALLBACK`
+  - Added `$` USD price formatting for Commodities category in the web app
+  - Total tracked indices: 8 → 13

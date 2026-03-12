@@ -611,7 +611,8 @@ Korean ETF Prices:
 
 Global Market Indices & USD/KRW:
   └─ yfinance (Yahoo Finance) — ✅ IMPLEMENTED (March 2026)
-  └─ 8 indices: S&P 500, NASDAQ, Dow Jones, KOSPI, KOSDAQ, VIX, US 10Y Yield, USD/KRW
+  └─ 13 indices: S&P 500, NASDAQ, Dow Jones, KOSPI, KOSDAQ, VIX, US 10Y Yield, USD/KRW, Gold, Crude Oil WTI, Silver, Copper, Natural Gas
+  └─ Commodities added (2026-03-13): Gold (GC=F), Crude Oil WTI (CL=F), Silver (SI=F), Copper (HG=F), Natural Gas (NG=F)
   └─ Hybrid approach: live API → 10-min cache → mock fallback
   └─ Module: src/market_data.py
 

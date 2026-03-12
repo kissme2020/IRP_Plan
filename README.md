@@ -4,7 +4,7 @@ A professional web application for tracking your Korean IRP (Individual Retireme
 
 ## Features
 
-- **Market Monitoring**: Live market data via yfinance (S&P 500, NASDAQ, Dow Jones, KOSPI, KOSDAQ, VIX, US 10Y Yield, USD/KRW)
+- **Market Monitoring**: Live market data via yfinance (S&P 500, NASDAQ, Dow Jones, KOSPI, KOSDAQ, VIX, US 10Y Yield, USD/KRW, Gold, Crude Oil WTI, Silver, Copper, Natural Gas)
 - **Rebalancing Alerts**: Automatic detection of portfolio drift with specific buy/sell recommendations
 - **Time-Based Rebalancing**: Configurable rebalancing schedule (e.g., every 90 days) with alerts
 - **Transaction Tracking**: Record buy/sell transactions with date, shares, and price
@@ -139,6 +139,11 @@ To stop the app, press `Ctrl+C` in the terminal.
   - US 10Y Treasury Yield (bond reference)
   - VIX (CBOE volatility / fear gauge)
   - **USD/KRW exchange rate** (highlighted metric card)
+  - Gold Futures (USD/oz)
+  - Crude Oil WTI Futures (USD/bbl)
+  - Silver Futures (USD/oz)
+  - Copper Futures (USD/lb)
+  - Natural Gas Futures (USD/MMBtu)
 - Hybrid approach: real API → cached 10 min → fallback mock if offline
 - Source indicators: 🟢 Live / 🟡 Fallback / 🔴 Mock
 - Market trend analysis uses live VIX for volatility, 10Y yield for bond outlook

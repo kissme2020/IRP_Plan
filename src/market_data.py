@@ -19,14 +19,19 @@ logger = logging.getLogger(__name__)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 MARKET_INDICES = {
-    "S&P 500":       {"symbol": "^GSPC",  "category": "US Equity",  "description": "US Large Cap Benchmark"},
-    "NASDAQ":        {"symbol": "^IXIC",  "category": "US Equity",  "description": "US Tech-Heavy Composite"},
-    "Dow Jones":     {"symbol": "^DJI",   "category": "US Equity",  "description": "US Blue Chip 30"},
-    "KOSPI":         {"symbol": "^KS11",  "category": "Korea",      "description": "Korea Composite Index"},
-    "KOSDAQ":        {"symbol": "^KQ11",  "category": "Korea",      "description": "Korea Growth/Tech Index"},
-    "US 10Y Yield":  {"symbol": "^TNX",   "category": "Bond",       "description": "US 10-Year Treasury Yield (%)"},
-    "VIX":           {"symbol": "^VIX",   "category": "Volatility", "description": "CBOE Volatility Index (Fear Gauge)"},
-    "USD/KRW":       {"symbol": "KRW=X",  "category": "Currency",   "description": "US Dollar to Korean Won"},
+    "S&P 500":       {"symbol": "^GSPC",  "category": "US Equity",    "description": "US Large Cap Benchmark"},
+    "NASDAQ":        {"symbol": "^IXIC",  "category": "US Equity",    "description": "US Tech-Heavy Composite"},
+    "Dow Jones":     {"symbol": "^DJI",   "category": "US Equity",    "description": "US Blue Chip 30"},
+    "KOSPI":         {"symbol": "^KS11",  "category": "Korea",        "description": "Korea Composite Index"},
+    "KOSDAQ":        {"symbol": "^KQ11",  "category": "Korea",        "description": "Korea Growth/Tech Index"},
+    "US 10Y Yield":  {"symbol": "^TNX",   "category": "Bond",         "description": "US 10-Year Treasury Yield (%)"},
+    "VIX":           {"symbol": "^VIX",   "category": "Volatility",   "description": "CBOE Volatility Index (Fear Gauge)"},
+    "USD/KRW":       {"symbol": "KRW=X",  "category": "Currency",     "description": "US Dollar to Korean Won"},
+    "Gold":          {"symbol": "GC=F",   "category": "Commodities",  "description": "Gold Futures (USD/oz)"},
+    "Crude Oil WTI": {"symbol": "CL=F",   "category": "Commodities",  "description": "WTI Crude Oil Futures (USD/bbl)"},
+    "Silver":        {"symbol": "SI=F",   "category": "Commodities",  "description": "Silver Futures (USD/oz)"},
+    "Copper":        {"symbol": "HG=F",   "category": "Commodities",  "description": "Copper Futures (USD/lb)"},
+    "Natural Gas":   {"symbol": "NG=F",   "category": "Commodities",  "description": "Natural Gas Futures (USD/MMBtu)"},
 }
 
 # Mock fallback data (used only when API completely fails)
@@ -39,6 +44,11 @@ _MOCK_FALLBACK = {
     "US 10Y Yield": {"price": 4.25, "change_pct": 0.0, "prev_close": 4.25},
     "VIX":          {"price": 18.0, "change_pct": 0.0, "prev_close": 18.0},
     "USD/KRW":      {"price": 1350.0, "change_pct": 0.0, "prev_close": 1350.0},
+    "Gold":         {"price": 2650.0, "change_pct": 0.0, "prev_close": 2650.0},
+    "Crude Oil WTI":{"price": 72.0, "change_pct": 0.0, "prev_close": 72.0},
+    "Silver":       {"price": 31.0, "change_pct": 0.0, "prev_close": 31.0},
+    "Copper":       {"price": 4.20, "change_pct": 0.0, "prev_close": 4.20},
+    "Natural Gas":  {"price": 3.50, "change_pct": 0.0, "prev_close": 3.50},
 }
 
 

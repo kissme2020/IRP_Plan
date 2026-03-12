@@ -30,7 +30,7 @@ streamlit run src/irp_web_app_enhanced.py --server.port 8502
 |------|-------------|
 | **Dashboard** | Portfolio balance, progress toward 400M KRW goal, growth chart |
 | **Track Deposits** | Record monthly 600K deposits and quarterly bonuses |
-| **Market Dashboard** | Live market data (S&P 500, NASDAQ, KOSPI, VIX, USD/KRW, etc.) |
+| **Market Dashboard** | Live market data (S&P 500, NASDAQ, KOSPI, VIX, USD/KRW, Gold, Oil, etc.) |
 | **Rebalancing Alerts** | Drift detection (>5%), buy/sell share counts, T+2 settlement |
 | **Plan Revision** | Compare Conservative / Moderate / Aggressive strategies |
 | **Projections** | Year-by-year forecasts and scenario analysis to 2030 |
