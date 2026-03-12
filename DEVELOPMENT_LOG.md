@@ -12,11 +12,11 @@ Each page follows: **Plan → Code → Test → User Verify → Update MDs → C
 
 | # | Page | Status | Date Started | Date Completed | Commit |
 |---|------|--------|-------------|----------------|--------|
-| 1 | Original Dashboard | ✅ Complete | 2026-03-12 | 2026-03-12 | — |
-| 2 | Track Deposits | ✅ Complete | 2026-03-12 | 2026-03-12 | — |
-| 3 | RSU Tracking | 🔄 In Progress | 2026-03-12 | — | — |
-| 4 | Projections | ⬜ Not Started | — | — | — |
-| 5 | Reports | ⬜ Not Started | — | — | — |
+| 1 | Original Dashboard | ✅ Complete | 2026-03-12 | 2026-03-12 | dba0ff3 |
+| 2 | Track Deposits | ✅ Complete | 2026-03-12 | 2026-03-12 | 5d95228 |
+| 3 | RSU Tracking | ✅ Complete | 2026-03-12 | 2026-03-12 | 46f55ef |
+| 4 | Projections | ✅ Complete | 2026-03-12 | 2026-03-12 | d6d5153 |
+| 5 | Reports | ✅ Complete | 2026-03-12 | 2026-03-12 | d6d5153 |
 
 ---
 
@@ -96,17 +96,63 @@ Each page follows: **Plan → Code → Test → User Verify → Update MDs → C
 
 ### Implementation Notes
 - **Date:** 2026-03-12
-- Added `page_rsu_tracking()` function (~170 lines) + helper `_get_rsu_data()`
-- Auto-initializes default RSU schedule on first visit
-- Stores in `data['rsu_vesting']` in irp_tracker_data.json
+- Rewrote to **share-based data model**: `shares`, `grant_price_usd`, `vest_price_usd`, `vested_date`
+- Added `_calc_rsu_value()` helper for consistent value calculations
+- Added migration code in `_get_rsu_data()` to auto-convert old `amount_usd` format
+- Added duplicate tranche # detection and auto-fix on load
+- 5-tab management UI: Edit (shares+price), Vest (with actual price input & gain preview), Add (auto-numbering), Delete, Settings
+- Fixed `calculate_total_deposits()` to work with share-based RSU data
 - Updated `main()` routing
 
 ---
 
 ## Page 4: Projections
-_(To be planned)_
+
+### Plan
+- Adjustable parameters: monthly contribution, annual bonus, expected return %, RSU toggle
+- Year-by-year projection table (2026–2030) with all income sources
+- Multi-scenario growth chart (Conservative/Custom/Optimistic)
+- Contribution source breakdown pie chart
+- Required return calculator with estimated goal date
+
+### Backend Functions Used
+- `calculate_progress()` — current balance and gap
+- `calculate_time_remaining()` — years/months to retirement
+- `calculate_future_value()` from utils.py — compound growth
+- `IRP_CONFIG` — base monthly, bonus, target CAGR
+- RSU data from `data['rsu_vesting']` — unvested tranches by year
+
+### Implementation Notes
+- **Date:** 2026-03-12
+- Added `page_projections()` function (~200 lines)
+- Year-by-year loop builds balance with monthly compounding, bonus, and RSU lump sums
+- Binary search algorithm for required annual return to reach goal
+- Months-to-goal calculator estimates when 400M target is hit
+- Updated `main()` routing
 
 ---
 
 ## Page 5: Reports
-_(To be planned)_
+
+### Plan
+- Portfolio summary metrics (balance, goal, progress, time remaining)
+- Allocation report: actual vs target with deviation table and status indicators
+- Side-by-side pie charts (current vs target allocation)
+- Contribution history summary with monthly bar chart
+- RSU summary (shares, vested/unvested, total value)
+- Plan parameters reference table
+
+### Backend Functions Used
+- `calculate_progress()` — portfolio metrics
+- `ALLOCATION_TARGET` — target allocation percentages
+- `data['holdings_values']` — KRW values (not share counts)
+- `data['transactions']` — contribution and dividend history
+- `data['rsu_vesting']` — RSU summary data
+
+### Implementation Notes
+- **Date:** 2026-03-12
+- Added `page_reports()` function (~200 lines)
+- Uses `holdings_values` (not `holdings`) for proper KRW-based allocation percentages
+- Falls back to `get_default_holdings_values()` if no values data exists
+- Updated `main()` routing
+- **All 10 sidebar pages now fully implemented**
