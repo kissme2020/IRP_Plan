@@ -433,17 +433,67 @@
         "Cash": 0.1
       },
       "notes": "From AI review: IRP_AI_Review_Q1_2026.md | [HIGH] Reduce AI Core Power by 8.5% of portfolio (850M KRW target value) now to lock in 32M KRW realized gain. Use proceeds to fund Treasury Bonds (currently 0%) and Dividend Stocks (currently 0%).; [HIGH] Deploy 22.6M KRW of excess cash into Treasury Bonds (KODEX \ubbf8\uad6d30\ub144\uad6d\ucc44\uc561\ud2f0\ube0c(H), ticker 484790) immediately. 4.8% yield is attractive and provides downside protection if equity markets correct again.; [MEDIUM] Build Dividend Stocks position to 12% (20M KRW) over next 2 months via monthly contributions. This diversifies away from pure AI/tech growth and improves income stability."
+    },
+    {
+      "date": "2026-03-13T10:45:29.068480",
+      "source": "ai_review",
+      "previous": {
+        "AI Core Power": 0.32,
+        "AI Tech TOP10": 0.14,
+        "Dividend Stocks": 0.12,
+        "Consumer Staples": 0.08,
+        "Treasury Bonds": 0.14,
+        "Gold": 0.08,
+        "Japan TOPIX": 0.02,
+        "Cash": 0.1
+      },
+      "new": {
+        "AI Core Power": 0.32,
+        "AI Tech TOP10": 0.12,
+        "Dividend Stocks": 0.11,
+        "Consumer Staples": 0.08,
+        "Treasury Bonds": 0.14,
+        "Gold": 0.08,
+        "Japan TOPIX": 0.02,
+        "Cash": 0.13
+      },
+      "notes": "From AI review: IRP_AI_Review_20260313_Hanku_4_5.md | [HIGH] Deploy 53.9M KRW from cash into Treasury Bonds immediately (currently 0% allocation vs 14% target). KTB yields provide portfolio stability and real returns in rising BoK rate environment.; [HIGH] Rebalance AI Tech TOP10 back to 12% allocation. Recent underperformance (-46.5% unrealized loss) reflects valuation reset, not broken thesis. TOP10 covered-call structure attractive if equity volatility continues.; [MEDIUM] Trim Gold to 8% (sell ~2.6M KRW). Current 10.4% overweight reflects 2025 safe-haven demand that has moderated. Redeploy into bonds."
+    },
+    {
+      "date": "2026-03-13T10:54:06.867888",
+      "source": "ai_review",
+      "previous": {
+        "AI Core Power": 0.32,
+        "AI Tech TOP10": 0.12,
+        "Dividend Stocks": 0.11,
+        "Consumer Staples": 0.08,
+        "Treasury Bonds": 0.14,
+        "Gold": 0.08,
+        "Japan TOPIX": 0.02,
+        "Cash": 0.13
+      },
+      "new": {
+        "AI Core Power": 0.26,
+        "AI Tech TOP10": 0.1,
+        "Dividend Stocks": 0.12,
+        "Consumer Staples": 0.08,
+        "Treasury Bonds": 0.16,
+        "Gold": 0.1,
+        "Japan TOPIX": 0.02,
+        "Cash": 0.16
+      },
+      "notes": "From AI review: irp_ai_review_2026_03_13_Opus_4_6.md | [HIGH] Deploy cash into Treasury Bonds immediately. The 33.4% cash position represents a 20.4% drift from target. With 10Y yields at 4.26% and the Fed holding at 3.5-3.75% with potential for 1-2 cuts later in 2026, long-duration bonds offer both yield and potential capital gains. Buy KODEX 484790 in tranches over the next 2-4 weeks to reach 16% allocation.; [HIGH] Rebalance from AI Core Power into Dividend Stocks and Consumer Staples. Trim AI Core Power by approximately 2-3% (locking in partial gains on the +30% unrealized profit) and redirect proceeds to defensive income positions that benefit from the current risk-off environment.; [MEDIUM] Consider adding KODEX US S&P500 Dividend Aristocrats or similar quality-income ETF if available on Samsung Fund platform. The current portfolio lacks broad defensive equity exposure beyond the existing dividend and staples holdings."
     }
   ],
   "allocation_target": {
-    "AI Core Power": 0.32,
-    "AI Tech TOP10": 0.14,
+    "AI Core Power": 0.26,
+    "AI Tech TOP10": 0.1,
     "Dividend Stocks": 0.12,
     "Consumer Staples": 0.08,
-    "Treasury Bonds": 0.14,
-    "Gold": 0.08,
+    "Treasury Bonds": 0.16,
+    "Gold": 0.1,
     "Japan TOPIX": 0.02,
-    "Cash": 0.1
+    "Cash": 0.16
   },
   "ai_reviews": [
     {
@@ -510,6 +560,137 @@
         "[MEDIUM] Build Dividend Stocks position to 12% (20M KRW) over next 2 months via monthly contributions. This diversifies away from pure AI/tech growth and improves income stability.",
         "[MEDIUM] Rebalance Gold to 8% by selling 2 tranches when spot price exceeds 30,000 KRW. This generates 3-4M KRW to redeploy into Consumer Staples.",
         "[LOW] Consider small add to Japan TOPIX if weighting drifts below 1.5%, but this is not urgent given modest allocation size."
+      ]
+    },
+    {
+      "date": "2026-03-13T10:45:29.071645",
+      "filename": "IRP_AI_Review_20260313_Hanku_4_5.md",
+      "allocation": {
+        "AI Core Power": {
+          "current": 28.3,
+          "recommended": 32.0,
+          "action": "Hold",
+          "reason": "Core thesis intact; AI infrastructure demand remains robust through 2026"
+        },
+        "AI Tech TOP10": {
+          "current": 10.7,
+          "recommended": 12.0,
+          "action": "Add",
+          "reason": "Recent dip is entry opportunity; TOP10 underperformance temporary given strong AI momentum"
+        },
+        "Dividend Stocks": {
+          "current": 9.2,
+          "recommended": 11.0,
+          "action": "Add",
+          "reason": "Increase exposure for income stability; complements equity growth"
+        },
+        "Consumer Staples": {
+          "current": 6.2,
+          "recommended": 8.0,
+          "action": "Add",
+          "reason": "Defensive positioning for macro uncertainty; economic growth moderating to 2.0%"
+        },
+        "Treasury Bonds": {
+          "current": 0.0,
+          "recommended": 14.0,
+          "action": "CRITICAL BUY",
+          "reason": "BoK holding at 2.5%; KTB 10Y yields 3.0-3.4% provide real returns and portfolio ballast"
+        },
+        "Gold": {
+          "current": 10.4,
+          "recommended": 8.0,
+          "action": "Trim",
+          "reason": "Overweight by 2.4%; use proceeds for bonds and equity rebalancing"
+        },
+        "Japan TOPIX": {
+          "current": 1.8,
+          "recommended": 2.0,
+          "action": "Hold",
+          "reason": "Minimal position; maintain for diversification"
+        },
+        "Cash": {
+          "current": 33.4,
+          "recommended": 13.0,
+          "action": "Reduce",
+          "reason": "Dramatically overweight; insufficient deployment given long runway and bond yields"
+        }
+      },
+      "cagr": {
+        "current": 10.2,
+        "recommended": 9.4,
+        "reason": "Moderating growth outlook (Korea 2.0% GDP, US AI capex cycle stabilizing). 10.2% assumed heavy equity outperformance unlikely given BoK rate hold and AI sector maturation. 9.4% achievable via disciplined rebalancing, bond yields at 3%+, and equity beta to robust AI infrastructure cycle through 2030."
+      },
+      "recommendations": [
+        "[HIGH] Deploy 53.9M KRW from cash into Treasury Bonds immediately (currently 0% allocation vs 14% target). KTB yields provide portfolio stability and real returns in rising BoK rate environment.",
+        "[HIGH] Rebalance AI Tech TOP10 back to 12% allocation. Recent underperformance (-46.5% unrealized loss) reflects valuation reset, not broken thesis. TOP10 covered-call structure attractive if equity volatility continues.",
+        "[MEDIUM] Trim Gold to 8% (sell ~2.6M KRW). Current 10.4% overweight reflects 2025 safe-haven demand that has moderated. Redeploy into bonds.",
+        "[MEDIUM] Gradually build Dividend Stocks position (9.2% \u2192 11%) over next two months using monthly contributions. Defensive income cushion for 2026-27 macro uncertainty.",
+        "[LOW] Monitor BoK signals for rate hikes in H2 2026 (currently 2.5%, neutral stance). If tightening signals emerge, further increase bond duration."
+      ]
+    },
+    {
+      "date": "2026-03-13T10:54:06.872402",
+      "filename": "irp_ai_review_2026_03_13_Opus_4_6.md",
+      "allocation": {
+        "AI Core Power": {
+          "current": 28.3,
+          "recommended": 26.0,
+          "action": "Trim",
+          "reason": "Take partial profits on +30% gain; AI infra spending faces rising energy costs from Iran conflict and oil surge"
+        },
+        "AI Tech TOP10": {
+          "current": 10.7,
+          "recommended": 10.0,
+          "action": "Hold",
+          "reason": "Deep unrealized loss (-46.5%); covered call structure provides income cushion; avoid locking in losses"
+        },
+        "Dividend Stocks": {
+          "current": 9.2,
+          "recommended": 12.0,
+          "action": "Add",
+          "reason": "Defensive income-generating position well-suited to current volatility and geopolitical uncertainty"
+        },
+        "Consumer Staples": {
+          "current": 6.2,
+          "recommended": 8.0,
+          "action": "Add",
+          "reason": "Inflation hedge via pricing power; oil-driven cost-of-living pressure boosts staples relative demand"
+        },
+        "Treasury Bonds": {
+          "current": 0.0,
+          "recommended": 16.0,
+          "action": "Add",
+          "reason": "Highest priority; 10Y yield at 4.26% offers attractive entry; flight-to-quality likely if conflict escalates"
+        },
+        "Gold": {
+          "current": 10.4,
+          "recommended": 10.0,
+          "action": "Hold",
+          "reason": "Gold above $5,000/oz with strong structural demand; already slightly overweight but geopolitical tailwind justifies maintaining"
+        },
+        "Japan TOPIX": {
+          "current": 1.8,
+          "recommended": 2.0,
+          "action": "Hold",
+          "reason": "Small position; Nikkei dropped 3% on Iran shock and Japan energy-import dependent; maintain but do not add"
+        },
+        "Cash": {
+          "current": 33.4,
+          "recommended": 16.0,
+          "action": "Deploy",
+          "reason": "Massively overweight; deploy into bonds and defensive equities to close drift and improve return potential"
+        }
+      },
+      "cagr": {
+        "current": 10.2,
+        "recommended": 8.5,
+        "reason": "The Iran conflict has introduced significant macro headwinds including oil above $100/bbl risk, rising Treasury yields (10Y up to 4.26%), and elevated VIX. The S&P 500 is down ~3% in March and range-bound YTD around 6,800-7,000. Wall Street consensus still expects ~12% S&P returns for 2026, but geopolitical risk and potential inflationary pressures from energy costs reduce the probability of hitting the upper end. With 57 months remaining and 47.9% of the 400M goal achieved, lowering the CAGR assumption to 8.5% builds in a margin of safety. At 8.5% CAGR plus monthly contributions, RSU tranches, and quarterly bonuses, the 400M target remains achievable but will require disciplined deployment of cash and contributions."
+      },
+      "recommendations": [
+        "[HIGH] Deploy cash into Treasury Bonds immediately. The 33.4% cash position represents a 20.4% drift from target. With 10Y yields at 4.26% and the Fed holding at 3.5-3.75% with potential for 1-2 cuts later in 2026, long-duration bonds offer both yield and potential capital gains. Buy KODEX 484790 in tranches over the next 2-4 weeks to reach 16% allocation.",
+        "[HIGH] Rebalance from AI Core Power into Dividend Stocks and Consumer Staples. Trim AI Core Power by approximately 2-3% (locking in partial gains on the +30% unrealized profit) and redirect proceeds to defensive income positions that benefit from the current risk-off environment.",
+        "[MEDIUM] Consider adding KODEX US S&P500 Dividend Aristocrats or similar quality-income ETF if available on Samsung Fund platform. The current portfolio lacks broad defensive equity exposure beyond the existing dividend and staples holdings.",
+        "[LOW] Monitor Japan TOPIX position. Japan is highly exposed to Middle East energy disruptions given its LNG import dependency. If the Iran conflict extends beyond 1-2 months and Strait of Hormuz disruptions persist, consider trimming to 1% and redeploying into gold or bonds."
       ]
     }
   ]

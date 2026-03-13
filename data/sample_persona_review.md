@@ -10,6 +10,10 @@ Current portfolio is too diversified for the growth mandate. AI Core Power shoul
 
 The March KOSPI correction proved the thesis — buy conviction, not diversification theater.
 
+### Discussion
+
+I disagree with Peter's suggestion to wait for a dip before adding to AI Core Power. Every month of cash drag at 23% costs ~1.2% of potential compounding. The PEG ratio supports immediate deployment — waiting for a perfect entry wastes the edge we already have. Ray's crash protection is overly conservative for a 57-month horizon; we can absorb a -30% drawdown and still hit the target if we stay fully invested in growth.
+
 ### Recommended Allocation
 
 | Asset | % of Total | Action | Reason |
@@ -47,6 +51,10 @@ Cathie's core thesis is backed by real earnings. AI Core Power trades at 28-32x 
 However, AI Tech TOP10 at 35-40x P/E with only 30% growth gives a PEG of 1.1-1.3 — borderline stretched. And Japan TOPIX at 22x for 8% growth (PEG 2.5+) is clearly mispaid for a growth sleeve.
 
 The key risk: memory prices are at cyclical peak. History shows DRAM/NAND cycles peak and crash. We may be near the peak — that's when you need better entry prices, not maximum conviction.
+
+### Discussion
+
+Cathie's right that AI Core Power isn't a bubble — the PEG ratio confirms it. But her 35% concentration ignores cyclical risk. DRAM prices have peaked and crashed 4 times in the last 20 years, each time losing 40-60%. I'd rather wait for a 10-15% dip and deploy a larger position than chase the top. Ray's safe sleeve approach makes sense as insurance, but Treasury Bonds at 4.8% are actually an earnings play, not just defense.
 
 ### Recommended Allocation
 
@@ -87,6 +95,10 @@ If growth sleeve crashes -30%, the safe sleeve should generate positive returns 
 
 Treasury Bonds are the core — at 4.8% yield with negative equity correlation. Gold provides crash insurance. Dividend stocks earn steady income. Cash is rebalancing ammunition.
 
+### Discussion
+
+Both Cathie and Peter underestimate tail risk. Cathie's 35% AI Core Power concentration means a -30% crash wipes 10.5% off total portfolio in a single month. Peter's "wait for a dip" strategy is better but still keeps too much in growth. My safe sleeve at 30% limits maximum drawdown to -18% — that's the difference between staying on plan and panic-selling. The rebalancing protocol turns crashes into buying opportunities: sell bonds at a profit, buy growth at a discount.
+
 ### Recommended Allocation
 
 | Asset | % of Total | Action | Reason |
@@ -123,6 +135,10 @@ Treasury Bonds are the core — at 4.8% yield with negative equity correlation. 
 The three personas converge on key points: (1) AI Core Power is fairly valued and should remain the anchor, (2) Japan TOPIX should be eliminated, (3) Treasury Bonds and Dividend Stocks need to be built, and (4) excess cash should be deployed in phases.
 
 The main disagreement is on timing and aggressiveness — Cathie wants 35% AI Core Power now, Peter wants to wait for a dip, Ray wants crash protection first. The synthesis balances all three.
+
+### Discussion
+
+The three personas converge on AI Core Power's fundamental value (PEG 0.6-0.7) and Japan TOPIX elimination. The core debate centers on deployment timing: Cathie's "deploy now" thesis is strong in a 57-month horizon, but Peter's cyclical peak concern is historically valid. The compromise uses phased deployment — immediate action on defensive assets where all three agree, with conditional triggers for the growth sleeve. Ray's crash protocol is the insurance policy that makes Cathie's growth conviction feasible without unacceptable downside risk.
 
 ### Recommended Allocation
 

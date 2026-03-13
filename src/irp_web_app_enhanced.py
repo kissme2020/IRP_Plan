@@ -602,14 +602,26 @@ def save_ai_review(review_data: dict, filename: str):
     data = load_data()
     if 'ai_reviews' not in data:
         data['ai_reviews'] = []
-    data['ai_reviews'].append({
+    record = {
         'date': datetime.now().isoformat(),
         'filename': filename,
         'allocation': review_data.get('allocation', {}),
         'cagr': review_data.get('cagr', {}),
         'recommendations': review_data.get('recommendations', []),
-    })
+        'market_outlook': review_data.get('market_outlook', ''),
+    }
+    # Save persona discussions if present
+    if review_data.get('persona_discussions'):
+        record['persona_discussions'] = review_data['persona_discussions']
+    data['ai_reviews'].append(record)
     save_data(data)
+
+
+def get_latest_ai_review() -> dict | None:
+    """Return the most recent AI review record, or None."""
+    data = load_data()
+    reviews = data.get('ai_reviews', [])
+    return reviews[-1] if reviews else None
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2430,6 +2442,12 @@ def _show_persona_tabs(persona_result: dict):
                     else:
                         st.info(f"🔵 {rec}")
 
+            # Discussion
+            discussion = pdata.get("discussion", "")
+            if discussion:
+                with st.expander("💬 Discussion with other personas"):
+                    st.markdown(discussion)
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PAGE 6: ORIGINAL DASHBOARD
@@ -2686,6 +2704,54 @@ def page_original_dashboard():
         st.metric("Annual Bonus (Expected)", f"₩{IRP_CONFIG['expected_annual_bonus']:,.0f}")
         rsu_total_krw = IRP_CONFIG['rsu_value_usd'] * IRP_CONFIG['rsu_kwr_per_usd'] * IRP_CONFIG['rsu_after_tax_pct']
         st.metric("RSU Total (After Tax)", f"₩{rsu_total_krw:,.0f}")
+
+    # ── Latest AI Review Summary ─────────────────────────────────────────────
+    latest_review = get_latest_ai_review()
+    if latest_review:
+        st.divider()
+        st.subheader("🤖 Latest AI Review")
+        review_date = latest_review['date'][:10]
+        review_file = latest_review.get('filename', 'Unknown')
+        st.caption(f"From **{review_file}** on {review_date}")
+
+        # CAGR
+        cagr_info = latest_review.get('cagr', {})
+        if cagr_info.get('recommended') or cagr_info.get('current'):
+            col_r1, col_r2 = st.columns(2)
+            with col_r1:
+                st.metric("AI-Recommended CAGR", f"{cagr_info.get('recommended', '—')}%")
+            with col_r2:
+                reason = cagr_info.get('reason', '')
+                if reason:
+                    st.caption(f"Reason: {reason[:200]}")
+
+        # Key Recommendations
+        recs = latest_review.get('recommendations', [])
+        if recs:
+            with st.expander(f"🎯 Key Recommendations ({len(recs)} items)", expanded=False):
+                for rec in recs:
+                    rec_upper = rec.upper()
+                    if '[HIGH]' in rec_upper or rec_upper.startswith('HIGH'):
+                        st.error(f"🔴 {rec}")
+                    elif '[MEDIUM]' in rec_upper or rec_upper.startswith('MEDIUM'):
+                        st.warning(f"🟡 {rec}")
+                    else:
+                        st.info(f"🔵 {rec}")
+
+        # Market Outlook
+        outlook = latest_review.get('market_outlook', '')
+        if outlook:
+            with st.expander("🌍 Market Outlook", expanded=False):
+                st.markdown(outlook)
+
+        # Persona Discussions
+        discussions = latest_review.get('persona_discussions', {})
+        if discussions:
+            with st.expander("🎭 Persona Discussions", expanded=False):
+                for persona_name, discussion_text in discussions.items():
+                    st.markdown(f"**{persona_name}**")
+                    st.markdown(discussion_text[:500] + ('...' if len(discussion_text) > 500 else ''))
+                    st.markdown('---')
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -3411,11 +3477,17 @@ def page_projections():
             key="proj_bonus"
         )
     with col_p3:
+        # Use AI-recommended CAGR if available, otherwise fall back to config
+        _latest = get_latest_ai_review()
+        _default_cagr = IRP_CONFIG['target_cagr'] * 100
+        if _latest and _latest.get('cagr', {}).get('recommended'):
+            _default_cagr = float(_latest['cagr']['recommended'])
         custom_rate = st.number_input(
             "Expected Return (%)",
-            value=IRP_CONFIG['target_cagr'] * 100,
+            value=_default_cagr,
             min_value=0.0, max_value=30.0, step=0.5, format="%.1f",
-            key="proj_rate"
+            key="proj_rate",
+            help="Pre-filled with latest AI-recommended CAGR" if _latest else None,
         )
     with col_p4:
         rsu_include = st.checkbox("Include RSU (after-tax)", value=True, key="proj_rsu")
@@ -3819,6 +3891,68 @@ def page_reports():
     }
     df_params = pd.DataFrame(list(params.items()), columns=['Parameter', 'Value'])
     st.dataframe(df_params, use_container_width=True, hide_index=True)
+
+    st.divider()
+
+    # ── AI Review History ────────────────────────────────────────────────────
+    st.subheader("🤖 AI Review History")
+    ai_reviews = data.get('ai_reviews', [])
+    if ai_reviews:
+        for review in reversed(ai_reviews[-5:]):
+            review_date = review['date'][:10]
+            filename = review.get('filename', 'Unknown')
+            cagr_info = review.get('cagr', {})
+            cagr_str = f"CAGR: {cagr_info.get('recommended', '?')}%" if cagr_info.get('recommended') else ''
+            recs = review.get('recommendations', [])
+            num_recs = len(recs)
+
+            with st.expander(f"{review_date} — {filename} {f'| {cagr_str}' if cagr_str else ''} | {num_recs} recommendations"):
+                # Allocation changes
+                alloc = review.get('allocation', {})
+                if alloc:
+                    alloc_rows = []
+                    for asset, info in alloc.items():
+                        if isinstance(info, dict):
+                            alloc_rows.append({
+                                'Asset': asset,
+                                'Recommended %': f"{info.get('recommended', '?')}%",
+                                'Action': info.get('action', ''),
+                                'Reason': info.get('reason', '')[:80],
+                            })
+                    if alloc_rows:
+                        st.dataframe(pd.DataFrame(alloc_rows), use_container_width=True, hide_index=True)
+
+                # CAGR
+                if cagr_info.get('reason'):
+                    st.caption(f"CAGR Reason: {cagr_info['reason'][:200]}")
+
+                # Recommendations
+                if recs:
+                    st.markdown("**Key Recommendations:**")
+                    for rec in recs:
+                        rec_upper = rec.upper()
+                        if '[HIGH]' in rec_upper or rec_upper.startswith('HIGH'):
+                            st.error(f"🔴 {rec}")
+                        elif '[MEDIUM]' in rec_upper or rec_upper.startswith('MEDIUM'):
+                            st.warning(f"🟡 {rec}")
+                        else:
+                            st.info(f"🔵 {rec}")
+
+                # Market Outlook
+                outlook = review.get('market_outlook', '')
+                if outlook:
+                    st.markdown("**Market Outlook:**")
+                    st.markdown(outlook)
+
+                # Persona Discussions
+                discussions = review.get('persona_discussions', {})
+                if discussions:
+                    st.markdown("**Persona Discussions:**")
+                    for pname, ptext in discussions.items():
+                        st.markdown(f"*{pname}:*")
+                        st.markdown(ptext[:600] + ('...' if len(ptext) > 600 else ''))
+    else:
+        st.info("No AI reviews imported yet. Use the **Import AI Review** page to add one.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

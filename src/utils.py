@@ -678,34 +678,40 @@ def generate_persona_export(
     lines.append("   - `## PERSONA 2: Peter Lynch` (valuation check)")
     lines.append("   - `## PERSONA 3: Ray Dalio` (safe sleeve design)")
     lines.append("   - `## SYNTHESIS` (integrated final recommendation)")
-    lines.append("2. Each PERSONA section MUST contain a subsection `### Recommended Allocation` with this EXACT table format:")
+    lines.append("2. Each PERSONA section MUST contain a subsection `### Discussion` where the persona:")
+    lines.append("   - Responds to / critiques the other two personas' allocations")
+    lines.append("   - Highlights key points of agreement and disagreement")
+    lines.append("   - Explains trade-offs from their perspective")
+    lines.append("   - Place this subsection AFTER the analysis text and BEFORE `### Recommended Allocation`")
+    lines.append("3. Each PERSONA section MUST contain a subsection `### Recommended Allocation` with this EXACT table format:")
     lines.append("")
     lines.append("   | Asset | % of Total | Action | Reason |")
     lines.append("   |-------|-----------|--------|--------|")
     lines.append("   | AI Core Power | [number] | Hold/Trim/Add | [reason] |")
     lines.append("   | ... (all 8 assets) | ... | ... | ... |")
     lines.append("")
-    lines.append("3. Each PERSONA section MUST contain a subsection `### CAGR Assessment` with:")
+    lines.append("4. Each PERSONA section MUST contain a subsection `### CAGR Assessment` with:")
     lines.append("   - Growth CAGR: [number]%")
     lines.append("   - Blended CAGR: [number]%")
     lines.append("   - Reason: [text]")
     lines.append("")
-    lines.append("4. Each PERSONA section MUST contain a subsection `### Key Recommendations` with bullets:")
+    lines.append("5. Each PERSONA section MUST contain a subsection `### Key Recommendations` with bullets:")
     lines.append("   - HIGH: [description]")
     lines.append("   - MEDIUM: [description]")
     lines.append("   - LOW: [description]")
     lines.append("")
-    lines.append("5. The `## SYNTHESIS` section MUST contain:")
+    lines.append("6. The `## SYNTHESIS` section MUST contain:")
+    lines.append("   - `### Discussion` — summarize the key debates and how each persona influenced the final allocation")
     lines.append("   - `### Recommended Allocation` — the FINAL integrated table (same format as persona tables)")
     lines.append("   - `### CAGR Assessment` — blended view")
     lines.append("   - `### Key Recommendations` — prioritized action items")
     lines.append("   - `### Market Outlook` — macro view")
     lines.append("   - `### Implementation Plan` — phased execution steps")
     lines.append("")
-    lines.append("6. Use EXACTLY these 8 asset names (spelled exactly): AI Core Power, AI Tech TOP10, Dividend Stocks, Consumer Staples, Treasury Bonds, Gold, Japan TOPIX, Cash")
-    lines.append("7. All `% of Total` values in each table MUST be plain numbers that sum to exactly 100")
-    lines.append("8. You may add rich analysis text WITHIN each persona section, but keep the subsection headers exact")
-    lines.append("9. Do NOT wrap the response in a code fence — output as plain markdown")
+    lines.append("7. Use EXACTLY these 8 asset names (spelled exactly): AI Core Power, AI Tech TOP10, Dividend Stocks, Consumer Staples, Treasury Bonds, Gold, Japan TOPIX, Cash")
+    lines.append("8. All `% of Total` values in each table MUST be plain numbers that sum to exactly 100")
+    lines.append("9. You may add rich analysis text WITHIN each persona section, but keep the subsection headers exact")
+    lines.append("10. Do NOT wrap the response in a code fence — output as plain markdown")
     lines.append("")
     lines.append("### Template (each persona section follows this pattern)")
     lines.append("")
@@ -713,6 +719,10 @@ def generate_persona_export(
     lines.append("## PERSONA 1: Cathie Wood")
     lines.append("")
     lines.append("[Analysis text...]")
+    lines.append("")
+    lines.append("### Discussion")
+    lines.append("")
+    lines.append("[Response to other personas' analyses, points of agreement/disagreement...]")
     lines.append("")
     lines.append("### Recommended Allocation")
     lines.append("")
@@ -740,7 +750,7 @@ def generate_persona_export(
     lines.append("- LOW: [action]")
     lines.append("```")
     lines.append("")
-    lines.append("The `## SYNTHESIS` section uses the same subsection format but adds `### Market Outlook` and `### Implementation Plan`.")
+    lines.append("The `## SYNTHESIS` section uses the same subsection format but adds `### Discussion` (summary of debates), `### Market Outlook` and `### Implementation Plan`.")
     lines.append("")
 
     return "\n".join(lines)
@@ -805,6 +815,7 @@ def parse_persona_review_md(content: str) -> dict:
             result["synthesis"]["allocation"] = parsed["allocation"]
             result["synthesis"]["cagr"] = parsed["cagr"]
             result["synthesis"]["recommendations"] = parsed["recommendations"]
+            result["synthesis"]["discussion"] = parsed.get("discussion", "")
             # Market Outlook
             outlook = re.search(
                 r"###\s*Market Outlook\s*\n(.*?)(?=\n### |\n## |\Z)",
@@ -830,12 +841,21 @@ def parse_persona_review_md(content: str) -> dict:
 
 
 def _parse_persona_section(section_text: str) -> dict:
-    """Parse allocation, CAGR, and recommendations from a persona (or synthesis) section."""
+    """Parse allocation, CAGR, recommendations, and discussion from a persona (or synthesis) section."""
     parsed = {
         "allocation": {},
         "cagr": {"growth": None, "blended": None, "reason": ""},
         "recommendations": [],
+        "discussion": "",
     }
+
+    # ── Discussion ──
+    disc_block = re.search(
+        r"#{2,3}\s*Discussion\s*\n(.*?)(?=\n#{2,3} |\n## |\Z)",
+        section_text, re.DOTALL | re.IGNORECASE,
+    )
+    if disc_block:
+        parsed["discussion"] = disc_block.group(1).strip()
 
     # ── Allocation table ──
     # Look for ### Recommended Allocation (or ## Recommended Allocation for backward compat)
@@ -985,6 +1005,17 @@ def persona_review_to_standard(persona_result: dict) -> dict:
                 }
 
     cagr = synth.get("cagr", {})
+
+    # Collect discussion text from each persona and synthesis
+    persona_discussions = {}
+    for pname, pdata in persona_result.get("personas", {}).items():
+        disc = pdata.get("discussion", "")
+        if disc:
+            persona_discussions[pname] = disc
+    synth_disc = synth.get("discussion", "")
+    if synth_disc:
+        persona_discussions["Synthesis"] = synth_disc
+
     return {
         "allocation": alloc,
         "cagr": {
@@ -994,5 +1025,6 @@ def persona_review_to_standard(persona_result: dict) -> dict:
         },
         "recommendations": synth.get("recommendations", []),
         "market_outlook": synth.get("market_outlook", ""),
+        "persona_discussions": persona_discussions,
         "raw": persona_result.get("raw", ""),
     }

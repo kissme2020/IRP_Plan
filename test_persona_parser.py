@@ -35,6 +35,19 @@ for r in synth["recommendations"]:
     print(f"  {r}")
 print(f'Market Outlook: {len(synth["market_outlook"])} chars')
 print(f'Implementation Plan: {len(synth["implementation_plan"])} chars')
+print(f'Synthesis Discussion: {len(synth.get("discussion", ""))} chars')
+
+# Test 1b: Discussion sections parsed
+print("\n=== PERSONA DISCUSSIONS ===")
+for name, pdata in result["personas"].items():
+    disc = pdata.get("discussion", "")
+    print(f'{name}: discussion={len(disc)} chars')
+    if disc:
+        print(f'  Preview: {disc[:100]}...')
+synth_disc = synth.get("discussion", "")
+print(f'Synthesis: discussion={len(synth_disc)} chars')
+if synth_disc:
+    print(f'  Preview: {synth_disc[:100]}...')
 
 # Test 2: Convert to standard format
 standard = persona_review_to_standard(result)
@@ -43,6 +56,9 @@ print(f'Allocation: {len(standard["allocation"])} assets')
 std_total = sum(v["recommended"] for v in standard["allocation"].values())
 print(f"Total: {std_total}%")
 print(f'CAGR: current={standard["cagr"]["current"]}, recommended={standard["cagr"]["recommended"]}')
+print(f'Persona discussions: {len(standard.get("persona_discussions", {}))} entries')
+for pname, ptext in standard.get("persona_discussions", {}).items():
+    print(f'  {pname}: {len(ptext)} chars')
 
 # Test 3: Standard format still works
 with open("data/sample_ai_review.md", "r", encoding="utf-8") as f:
@@ -65,5 +81,13 @@ assert synth["cagr"]["blended"] == 11.5, f'Expected blended 11.5, got {synth["ca
 assert len(synth["recommendations"]) >= 4, f'Expected >=4 recommendations, got {len(synth["recommendations"])}'
 assert len(synth["market_outlook"]) > 50, "Market outlook too short"
 assert len(synth["implementation_plan"]) > 50, "Implementation plan too short"
+
+# Discussion assertions
+for persona_name in ["Cathie Wood", "Peter Lynch", "Ray Dalio"]:
+    disc = result["personas"][persona_name].get("discussion", "")
+    assert len(disc) > 50, f"{persona_name} discussion too short or missing ({len(disc)} chars)"
+assert len(synth.get("discussion", "")) > 50, "Synthesis discussion too short or missing"
+pd = standard.get("persona_discussions", {})
+assert len(pd) >= 4, f"Expected >=4 persona_discussions entries, got {len(pd)}"
 
 print("\n=== ALL TESTS PASSED ===")
