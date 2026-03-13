@@ -15,8 +15,8 @@ A professional web application for tracking your Korean IRP (Individual Retireme
 - **Monthly Tracking**: Easy deposit entry and progress monitoring
 - **RSU Management**: Track your Keysight RSU vesting (4 tranches: 2027-2030)
 - **Projections**: Year-by-year balance projections to retirement
-- **Export for AI Review**: Generate portfolio snapshots for Claude/ChatGPT/Gemini with structured response format instructions
-- **Import AI Review**: Parse AI-generated .md files and apply recommended allocation changes
+- **Export for AI Review**: Generate portfolio snapshots for Claude/ChatGPT/Gemini — Standard or Three-Persona format (Cathie Wood, Peter Lynch, Ray Dalio) with inter-persona discussion instructions
+- **Import AI Review**: Auto-detect and parse Standard or Three-Persona .md files — persona tabs, discussion context, one-click apply
 - **Data-Driven Allocation**: Allocation targets stored in JSON, editable via AI review or manual reset
 - **Allocation History**: Track all allocation target changes over time with source and notes
 - **Professional Dashboard**: Beautiful visualizations with Plotly
@@ -114,6 +114,7 @@ To stop the app, press `Ctrl+C` in the terminal.
 - Check progress toward 400M KRW goal
 - See success probability
 - View balance growth chart over time
+- **Latest AI Review summary**: CAGR metric, key recommendations, market outlook, persona discussions
 
 ### Track Deposits
 - Add monthly 600K IRP deposits
@@ -177,6 +178,7 @@ To stop the app, press `Ctrl+C` in the terminal.
 ### Projections
 - Year-by-year balance forecasts to 2030
 - Scenario analysis with different return rates (6%, 10%, 15%, 18%)
+- Expected Return pre-filled with latest AI-recommended CAGR (falls back to 10.2%)
 - Impact of different monthly deposit amounts
 - Impact of annual return rate changes
 - Milestone tracking
@@ -187,17 +189,22 @@ To stop the app, press `Ctrl+C` in the terminal.
 - Recommended allocation pie chart (Option B allocation)
 - Alerts and recommendations based on progress
 - Current portfolio status
+- **AI Review History**: Last 5 reviews with allocation, CAGR, recommendations, outlook, persona discussions
 
 ### Export for AI Review
 - Generates a ready-to-paste markdown snapshot of your entire portfolio
 - Includes holdings, drift analysis, gains/losses, transaction history, and ETF reference
+- **Two export modes**: Standard (single reviewer) or Three-Persona (Cathie Wood, Peter Lynch, Ray Dalio)
+- Three-Persona mode includes mandates per persona and `### Discussion` subsection instructions for inter-persona debate
 - Contains **Response Format Instructions** that tell any AI to reply in our exact parseable format
 - Copy text → paste into Claude.ai / ChatGPT / Gemini → save response as .md
 
 ### Import AI Review
 - Upload the AI's .md response file
-- Parser extracts: allocation table, CAGR assessment, key recommendations (HIGH/MEDIUM/LOW), market outlook
-- Side-by-side comparison of current vs recommended allocation
+- **Auto-detects** Standard or Three-Persona format
+- Parser extracts: allocation table, CAGR assessment, key recommendations (HIGH/MEDIUM/LOW), market outlook, persona discussions
+- Three-Persona imports show **per-persona tabs** with individual allocations, CAGR, recommendations, and discussion context
+- Side-by-side comparison of current vs recommended allocation (uses SYNTHESIS for persona format)
 - Fine-tune values before applying
 - One-click **Apply** to update allocation targets, or **Reset** to Option B defaults
 - View allocation change history
