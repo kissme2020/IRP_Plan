@@ -483,17 +483,117 @@
         "Cash": 0.16
       },
       "notes": "From AI review: irp_ai_review_2026_03_13_Opus_4_6.md | [HIGH] Deploy cash into Treasury Bonds immediately. The 33.4% cash position represents a 20.4% drift from target. With 10Y yields at 4.26% and the Fed holding at 3.5-3.75% with potential for 1-2 cuts later in 2026, long-duration bonds offer both yield and potential capital gains. Buy KODEX 484790 in tranches over the next 2-4 weeks to reach 16% allocation.; [HIGH] Rebalance from AI Core Power into Dividend Stocks and Consumer Staples. Trim AI Core Power by approximately 2-3% (locking in partial gains on the +30% unrealized profit) and redirect proceeds to defensive income positions that benefit from the current risk-off environment.; [MEDIUM] Consider adding KODEX US S&P500 Dividend Aristocrats or similar quality-income ETF if available on Samsung Fund platform. The current portfolio lacks broad defensive equity exposure beyond the existing dividend and staples holdings."
+    },
+    {
+      "date": "2026-03-13T11:40:18.155941",
+      "source": "ai_review",
+      "previous": {
+        "AI Core Power": 0.26,
+        "AI Tech TOP10": 0.1,
+        "Dividend Stocks": 0.12,
+        "Consumer Staples": 0.08,
+        "Treasury Bonds": 0.16,
+        "Gold": 0.1,
+        "Japan TOPIX": 0.02,
+        "Cash": 0.16
+      },
+      "new": {
+        "AI Core Power": 0.26,
+        "AI Tech TOP10": 0.08,
+        "Dividend Stocks": 0.12,
+        "Consumer Staples": 0.08,
+        "Treasury Bonds": 0.16,
+        "Gold": 0.1,
+        "Japan TOPIX": 0.04,
+        "Cash": 0.16
+      },
+      "notes": "From AI review: IRP_AI_Review_20260313_Hanku_4_5.md | [HIGH] Deploy 50-60M KRW of cash into Treasury Bonds immediately. Your current 0% allocation creates sequence-of-return risk, especially given sticky inflation (2.4% CPI, above Fed's 2% target) and geopolitical shocks (Iran tensions pushing oil to $95/barrel). Bonds yielding 4.0-4.2% lock in real returns and provide portfolio ballast. Target 16% by month-end.; [HIGH] Rebalance AI Tech TOP10 (KODEX 483280) from 10.7% to 8%. This position is down 46.6% and represents poor cost basis. Covered-call strategy has underperformed. Redeploy proceeds into Dividend Stocks and Treasury Bonds. If thesis improves on earnings clarity, rebuild later at better entry.; [MEDIUM] Increase Japan TOPIX allocation from 1.8% to 4%. Morgan Stanley forecasts JPY weakness and 7% TOPIX returns in 2026 (vs. 14% S&P 500). Japan is underfollowed; fiscal reforms and valuations are compelling. Use cash deployment to add here."
+    },
+    {
+      "date": "2026-03-13T12:19:33.759182",
+      "source": "ai_review",
+      "previous": {
+        "AI Core Power": 0.26,
+        "AI Tech TOP10": 0.08,
+        "Dividend Stocks": 0.12,
+        "Consumer Staples": 0.08,
+        "Treasury Bonds": 0.16,
+        "Gold": 0.1,
+        "Japan TOPIX": 0.04,
+        "Cash": 0.16
+      },
+      "new": {
+        "AI Core Power": 0.24,
+        "AI Tech TOP10": 0.08,
+        "Dividend Stocks": 0.12,
+        "Consumer Staples": 0.08,
+        "Treasury Bonds": 0.18,
+        "Gold": 0.12,
+        "Japan TOPIX": 0.04,
+        "Cash": 0.14
+      },
+      "notes": "From AI review: irp_ai_review_2026_03_13_Opus_4_6.md | [HIGH] Deploy approximately 29M KRW of excess cash into Treasury Bonds (KODEX 484790) immediately. The 30-year yield at 4.77% provides strong income and critical downside protection. A 16% allocation gap is the largest drift in the portfolio.; [HIGH] Trim AI Core Power by approximately 4% (roughly 6.4M KRW) and redirect proceeds to Dividend Stocks and Consumer Staples. Lock in partial gains before geopolitical volatility erodes them.; [MEDIUM] Increase Gold allocation by 1.6% (roughly 2.6M KRW). Gold is supported by the Iran conflict, central bank purchases, and JP Morgan forecasts of $5,000/oz by year-end. This strengthens the portfolio hedge."
+    },
+    {
+      "date": "2026-03-13T13:48:16.372855",
+      "source": "persona_ai_review",
+      "previous": {
+        "AI Core Power": 0.24,
+        "AI Tech TOP10": 0.08,
+        "Dividend Stocks": 0.12,
+        "Consumer Staples": 0.08,
+        "Treasury Bonds": 0.18,
+        "Gold": 0.12,
+        "Japan TOPIX": 0.04,
+        "Cash": 0.14
+      },
+      "new": {
+        "AI Core Power": 0.26,
+        "AI Tech TOP10": 0.07,
+        "Dividend Stocks": 0.12,
+        "Consumer Staples": 0.07,
+        "Treasury Bonds": 0.16,
+        "Gold": 0.12,
+        "Japan TOPIX": 0.05,
+        "Cash": 0.15
+      },
+      "notes": "From AI review: irp_ai_review_2026_03_13_Opus_4_6.md | Personas: Cathie Wood, Peter Lynch, Ray Dalio | [HIGH] Deploy 25.8M KRW from cash into Treasury Bonds immediately \u2014 execute in 3 equal tranches (8.6M each) over 6 weeks to fill the most critical portfolio gap; [HIGH] Trim AI Tech TOP10 from 10.7% to 7% \u2014 sell approximately 510 shares and redeploy 50% to Dividend Stocks and 50% to Japan TOPIX; [MEDIUM] Scale Japan TOPIX from 1.8% to 5% \u2014 purchase approximately 180 additional shares over 60 days via bi-weekly orders"
+    },
+    {
+      "date": "2026-03-13T13:48:47.035064",
+      "source": "persona_ai_review",
+      "previous": {
+        "AI Core Power": 0.26,
+        "AI Tech TOP10": 0.07,
+        "Dividend Stocks": 0.12,
+        "Consumer Staples": 0.07,
+        "Treasury Bonds": 0.16,
+        "Gold": 0.12,
+        "Japan TOPIX": 0.05,
+        "Cash": 0.15
+      },
+      "new": {
+        "AI Core Power": 0.26,
+        "AI Tech TOP10": 0.07,
+        "Dividend Stocks": 0.12,
+        "Consumer Staples": 0.07,
+        "Treasury Bonds": 0.16,
+        "Gold": 0.12,
+        "Japan TOPIX": 0.05,
+        "Cash": 0.15
+      },
+      "notes": "From AI review: irp_ai_review_2026_03_13_Opus_4_6.md | Personas: Cathie Wood, Peter Lynch, Ray Dalio | [HIGH] Deploy 25.8M KRW from cash into Treasury Bonds immediately \u2014 execute in 3 equal tranches (8.6M each) over 6 weeks to fill the most critical portfolio gap; [HIGH] Trim AI Tech TOP10 from 10.7% to 7% \u2014 sell approximately 510 shares and redeploy 50% to Dividend Stocks and 50% to Japan TOPIX; [MEDIUM] Scale Japan TOPIX from 1.8% to 5% \u2014 purchase approximately 180 additional shares over 60 days via bi-weekly orders"
     }
   ],
   "allocation_target": {
     "AI Core Power": 0.26,
-    "AI Tech TOP10": 0.1,
+    "AI Tech TOP10": 0.07,
     "Dividend Stocks": 0.12,
-    "Consumer Staples": 0.08,
+    "Consumer Staples": 0.07,
     "Treasury Bonds": 0.16,
-    "Gold": 0.1,
-    "Japan TOPIX": 0.02,
-    "Cash": 0.16
+    "Gold": 0.12,
+    "Japan TOPIX": 0.05,
+    "Cash": 0.15
   },
   "ai_reviews": [
     {
@@ -692,6 +792,289 @@
         "[MEDIUM] Consider adding KODEX US S&P500 Dividend Aristocrats or similar quality-income ETF if available on Samsung Fund platform. The current portfolio lacks broad defensive equity exposure beyond the existing dividend and staples holdings.",
         "[LOW] Monitor Japan TOPIX position. Japan is highly exposed to Middle East energy disruptions given its LNG import dependency. If the Iran conflict extends beyond 1-2 months and Strait of Hormuz disruptions persist, consider trimming to 1% and redeploying into gold or bonds."
       ]
+    },
+    {
+      "date": "2026-03-13T11:40:18.159940",
+      "filename": "IRP_AI_Review_20260313_Hanku_4_5.md",
+      "allocation": {
+        "AI Core Power": {
+          "current": 28.2,
+          "recommended": 26.0,
+          "action": "Hold",
+          "reason": "Strong performer (+29.9% gain) but valuations stretched; maintain core position"
+        },
+        "AI Tech TOP10": {
+          "current": 10.7,
+          "recommended": 8.0,
+          "action": "Trim",
+          "reason": "Underwater position (-46.6% loss); reduce until thesis clarity improves"
+        },
+        "Dividend Stocks": {
+          "current": 9.2,
+          "recommended": 12.0,
+          "action": "Add",
+          "reason": "Underweight defensively; earnings growth + lower equity multiples attractive"
+        },
+        "Consumer Staples": {
+          "current": 6.2,
+          "recommended": 8.0,
+          "action": "Add",
+          "reason": "Defensive hedge against volatility; earnings growth expected in 2026"
+        },
+        "Treasury Bonds": {
+          "current": 0.0,
+          "recommended": 16.0,
+          "action": "Add",
+          "reason": "Critical priority: zero exposure creates substantial portfolio risk; yields 4.0-4.2% attractive"
+        },
+        "Gold": {
+          "current": 10.4,
+          "recommended": 10.0,
+          "action": "Hold",
+          "reason": "Solid inflation hedge (1.8% portfolio drag); maintain at target with geopolitical risks rising"
+        },
+        "Japan TOPIX": {
+          "current": 1.8,
+          "recommended": 4.0,
+          "action": "Add",
+          "reason": "Underweight Japan; allocate excess cash here; JPY weakness creates opportunity"
+        },
+        "Cash": {
+          "current": 33.5,
+          "recommended": 16.0,
+          "action": "Deploy",
+          "reason": "Severe overweight (+17.5% drift); redirect 53.9M KRW to productive assets and bonds"
+        }
+      },
+      "cagr": {
+        "current": 10.2,
+        "recommended": 8.5,
+        "reason": "US equity valuations (S&P 500 CAPE at 37, top 10% historically) suggest lower returns from multiple expansion. Analyst consensus points to earnings-driven 8-10% returns through 2026, not momentum-driven gains. AI capex will drive productivity but is already priced in. Your portfolio is well-positioned for mid-single-digit-plus returns; reducing CAGR expectation by 1.7% aligns with realistic market conditions and improves goal-setting accuracy."
+      },
+      "recommendations": [
+        "[HIGH] Deploy 50-60M KRW of cash into Treasury Bonds immediately. Your current 0% allocation creates sequence-of-return risk, especially given sticky inflation (2.4% CPI, above Fed's 2% target) and geopolitical shocks (Iran tensions pushing oil to $95/barrel). Bonds yielding 4.0-4.2% lock in real returns and provide portfolio ballast. Target 16% by month-end.",
+        "[HIGH] Rebalance AI Tech TOP10 (KODEX 483280) from 10.7% to 8%. This position is down 46.6% and represents poor cost basis. Covered-call strategy has underperformed. Redeploy proceeds into Dividend Stocks and Treasury Bonds. If thesis improves on earnings clarity, rebuild later at better entry.",
+        "[MEDIUM] Increase Japan TOPIX allocation from 1.8% to 4%. Morgan Stanley forecasts JPY weakness and 7% TOPIX returns in 2026 (vs. 14% S&P 500). Japan is underfollowed; fiscal reforms and valuations are compelling. Use cash deployment to add here.",
+        "[MEDIUM] Add 2-3M KRW quarterly to Dividend Stocks (KODEX 489250) as your monthly contributions arrive. Build defensively into lower valuations; S&P 500 dividend stocks trade at discount to growth. This balances AI-heavy equity exposure.",
+        "[LOW] Review quarterly rebalancing triggers. Current drift alerts (Treasury Bonds -16%, Cash +17.5%) should trigger action by April if not addressed. Set 5% tolerance bands, not 10%."
+      ],
+      "market_outlook": "The 2026 outlook is cautiously constructive but no longer euphoric. AI capex remains robust\u2014mega-cap tech will spend $520B+ in 2026 (30% YoY growth)\u2014and drives productivity broadly across sectors. However, valuations are stretched: S&P 500 CAPE sits at 37 (top 10% since 1988), with forward P/E of 24x and near-zero equity risk premium versus Treasuries. This means returns will be driven by earnings growth, not multiple expansion.\n\nYour portfolio has two critical vulnerabilities:\n\n1. Cash overweight (33.5%) is a performance drag. Money market yields are declining as the Fed holds rates at 3.50-3.75% and cuts only 1-2 more times in 2026. Treasury yields are range-bound 3.75-4.25%, offering real returns (after inflation ~2.3-2.4%). Moving cash into bonds captures income; staying in cash loses to inflation.\n\n2. AI Tech TOP10's -46.6% loss reflects covered-call underperformance during the AI rally. While the covered-call structure provides downside protection, it caps upside. Your core AI exposure (Core Power, +29.9%) is sufficient; trim the TOP10 position and rebuild quality exposure through Dividend Stocks and bonds, which benefit from broadening leadership.\n\nMacro headwinds are building: sticky inflation (Iran war, oil at $95/barrel), fiscal deficits rising, and potential for spread widening in corporate credit if defaults tick up. These argue for more defensive positioning. However, the USD should weaken (Fed easing cycle), benefiting your overseas (Japan) and commodity (gold) hedges.\n\nEarnings growth will be the equity driver. S&P 500 earnings are forecast to reach $305/share (2026 consensus), up from $275 in 2025. Dividend stocks and small-cap value\u2014both underweight in your portfolio\u2014are positioned to participate in earnings broadening beyond mega-cap tech. This is where your rebalancing should focus.\n\nFor your 57-month path to 400M KRW, the 8.5% CAGR assumption requires disciplined monthly contributions, quarterly rebalancing, and the 2027-2030 RSU tranches (~26.4M KRW after-tax). You'll need both market returns and behavioral consistency. Your current overweight cash and zero bonds are working against you; fix this immediately."
+    },
+    {
+      "date": "2026-03-13T12:19:33.763181",
+      "filename": "irp_ai_review_2026_03_13_Opus_4_6.md",
+      "allocation": {
+        "AI Core Power": {
+          "current": 28.2,
+          "recommended": 24.0,
+          "action": "Trim",
+          "reason": "Take partial profits (+29.9% gain); AI infrastructure valuations stretched; redeploy to underweight areas"
+        },
+        "AI Tech TOP10": {
+          "current": 10.7,
+          "recommended": 8.0,
+          "action": "Trim",
+          "reason": "Deep unrealized loss (-46.6%); covered call structure caps upside in volatile rally; reduce to target"
+        },
+        "Dividend Stocks": {
+          "current": 9.2,
+          "recommended": 12.0,
+          "action": "Add",
+          "reason": "Defensive income exposure needed amid Iran war volatility; dividend cushion supports total return"
+        },
+        "Consumer Staples": {
+          "current": 6.2,
+          "recommended": 8.0,
+          "action": "Add",
+          "reason": "Defensive sector benefits from flight-to-safety rotation; underweight vs target"
+        },
+        "Treasury Bonds": {
+          "current": 0.0,
+          "recommended": 18.0,
+          "action": "Add",
+          "reason": "Highest priority: 30Y yield at 4.77% offers strong coupon income; critical portfolio ballast during geopolitical shock"
+        },
+        "Gold": {
+          "current": 10.4,
+          "recommended": 12.0,
+          "action": "Add",
+          "reason": "Gold near $5,100/oz supported by Iran war, central bank buying, and rate cut expectations; increase hedge"
+        },
+        "Japan TOPIX": {
+          "current": 1.8,
+          "recommended": 4.0,
+          "action": "Add",
+          "reason": "TOPIX outlook positive on governance reform and Takaichi fiscal policy; underweight vs target"
+        },
+        "Cash": {
+          "current": 33.5,
+          "recommended": 14.0,
+          "action": "Trim",
+          "reason": "Excess cash is a drag on long-term CAGR; deploy into bonds, dividends, and defensive equity"
+        }
+      },
+      "cagr": {
+        "current": 10.2,
+        "recommended": 8.5,
+        "reason": "The Iran war has introduced significant near-term uncertainty including oil above $95/bbl, sticky inflation, and a likely Fed pause through at least September 2026. AI hardware stocks have traded sideways since mid-2025 while software has sold off sharply. Elevated equity valuations (S&P 500 forward P/E ~22x) and geopolitical risk premiums suggest moderating return expectations. However, deploying the large cash position into bonds yielding 4.5-4.8% and defensive equities with dividend support can partially offset lower equity return assumptions. With RSU tranches arriving 2027-2030 and continued monthly contributions, the 400M KRW target remains achievable at 8.5% CAGR if rebalancing is executed promptly."
+      },
+      "recommendations": [
+        "[HIGH] Deploy approximately 29M KRW of excess cash into Treasury Bonds (KODEX 484790) immediately. The 30-year yield at 4.77% provides strong income and critical downside protection. A 16% allocation gap is the largest drift in the portfolio.",
+        "[HIGH] Trim AI Core Power by approximately 4% (roughly 6.4M KRW) and redirect proceeds to Dividend Stocks and Consumer Staples. Lock in partial gains before geopolitical volatility erodes them.",
+        "[MEDIUM] Increase Gold allocation by 1.6% (roughly 2.6M KRW). Gold is supported by the Iran conflict, central bank purchases, and JP Morgan forecasts of $5,000/oz by year-end. This strengthens the portfolio hedge.",
+        "[MEDIUM] Add to Japan TOPIX position to reach 4% target. TOPIX benefits from governance reform momentum, Takaichi fiscal spending, and BOJ normalization. Goldman Sachs forecasts 10% return over the next 12 months.",
+        "[LOW] Reassess AI Tech TOP10 covered call strategy. The -46.6% unrealized loss is substantial, but the covered call premium provides some income offset. Consider tax-loss harvesting if IRP rules permit, or hold for dividend income and gradual recovery.",
+        "[LOW] Review KODEX ETF alternatives on Samsung Fund for any lower-expense-ratio equivalents, particularly in the Treasury Bond and Dividend categories where new products may have launched."
+      ],
+      "market_outlook": "The dominant macro event is the 2026 Iran war, which began on February 28 with US-Israeli strikes. The Strait of Hormuz closure has disrupted roughly 20% of global oil supplies, pushing WTI crude above $95/bbl and Brent to comparable levels. Iran's new leader Mojtaba Khamenei has declared the strait closure will continue as leverage, while the IEA has authorized its largest-ever emergency reserve release of 400 million barrels. Oil-driven inflation risk is the primary market concern: February US CPI came in on target, but the energy shock has yet to fully flow through to price data.\n\nThe Fed held rates at 3.50-3.75% in January and is widely expected to remain on hold at next week's meeting. Markets are pricing only one 25bps cut in 2026, possibly in September, as inflation remains above the 2% target. The 10-year Treasury yield has climbed to 4.23% and the 30-year to 4.77%, creating attractive entry points for fixed income. LPL Research estimates a 3.75-4.25% trading range for the 10-year in 2026.\n\nUS equities are under pressure. The S&P 500 fell 1.52% on March 12 to 6,672. Morningstar notes the tech sector is trading at a 20% discount to fair value as software stocks have been hit hard by AI disruption fears, while AI hardware names have been range-bound since August 2025. The market is rotating from growth and tech into energy, defense, and value stocks. Morgan Stanley advises increasing exposure to defense, security, and industrial resilience themes.\n\nGold remains well-supported near $5,100/oz despite recent volatility. JP Morgan forecasts $5,000/oz by year-end 2026 and $5,400/oz by end-2027, driven by central bank purchases and investor diversification demand. The World Gold Council notes Asian and European ETF holdings remain well below previous peaks, suggesting room for further inflows.\n\nJapan equities have been a bright spot globally, with TOPIX hitting record highs following PM Takaichi's election victory and pro-growth fiscal agenda. The Nikkei and TOPIX posted their best new-year gains since 1990, though the Iran oil shock caused a sharp 5.2% single-day drop on March 9. BofA targets TOPIX 3,700 by year-end; Goldman Sachs forecasts a 10% return. Corporate governance reform, rising ROE above 10%, and US reindustrialization tailwinds support the constructive outlook.\n\nFor this IRP portfolio specifically, the immediate priority is eliminating the extreme cash overweight and Treasury Bond underweight. The current 33.5% cash position is a significant drag on compounding toward the 400M KRW goal. Deploying into bonds at current yields provides both income and portfolio stability, while modest increases to Gold, Dividend Stocks, and Consumer Staples strengthen the defensive posture appropriate for the current geopolitical environment. AI-related positions should be trimmed to lock in gains and reduce concentration risk, not abandoned, as the long-term AI infrastructure buildout theme remains intact."
+    },
+    {
+      "date": "2026-03-13T13:48:16.378117",
+      "filename": "irp_ai_review_2026_03_13_Opus_4_6.md",
+      "allocation": {
+        "AI Core Power": {
+          "current": 0,
+          "recommended": 26.0,
+          "action": "Hold",
+          "reason": "Primary growth engine at slight overweight; consensus ceiling to avoid concentration risk"
+        },
+        "AI Tech TOP10": {
+          "current": 0,
+          "recommended": 7.0,
+          "action": "Trim",
+          "reason": "Reduce covered-call drag; redeploy proceeds to Dividend Stocks and Japan TOPIX"
+        },
+        "Dividend Stocks": {
+          "current": 0,
+          "recommended": 12.0,
+          "action": "Add",
+          "reason": "Earnings-validated compounders at fair PEG; bridge between growth and safety"
+        },
+        "Consumer Staples": {
+          "current": 0,
+          "recommended": 7.0,
+          "action": "Hold",
+          "reason": "Recession resilience and pricing power; slight underweight to fund growth"
+        },
+        "Treasury Bonds": {
+          "current": 0,
+          "recommended": 16.0,
+          "action": "Add",
+          "reason": "Crash insurance cornerstone; rallies during drawdowns; deploy from cash in 3 tranches"
+        },
+        "Gold": {
+          "current": 0,
+          "recommended": 12.0,
+          "action": "Add",
+          "reason": "Tail-risk and stagflation hedge; uncorrelated diversifier at target weight"
+        },
+        "Japan TOPIX": {
+          "current": 0,
+          "recommended": 5.0,
+          "action": "Add",
+          "reason": "Best risk-adjusted opportunity at 13-15x earnings; corporate reform catalyst"
+        },
+        "Cash": {
+          "current": 0,
+          "recommended": 15.0,
+          "action": "Deploy",
+          "reason": "Reduce from 33.5%; maintain buffer for opportunistic rebalancing during corrections"
+        }
+      },
+      "cagr": {
+        "current": 12.4,
+        "recommended": 10.6,
+        "reason": "The equity sleeve (57% across AI Core Power, AI Tech TOP10, Dividend Stocks, Consumer Staples, Japan TOPIX) targets 12-14% returns driven primarily by AI infrastructure capex and Japanese corporate reform. The safe sleeve (28% across Treasury Bonds and Gold) targets 5-7% returns but provides rebalancing fuel during drawdowns. The blended 10.6% CAGR exceeds the 10.2% target by 40bps, providing a margin of safety. Dalio's rebalancing protocol adds an estimated 1.5% over full market cycles, bringing the effective CAGR to approximately 11.5% \u2014 sufficient to reach 400M even with one significant drawdown en route."
+      },
+      "recommendations": [
+        "[HIGH] Deploy 25.8M KRW from cash into Treasury Bonds immediately \u2014 execute in 3 equal tranches (8.6M each) over 6 weeks to fill the most critical portfolio gap",
+        "[HIGH] Trim AI Tech TOP10 from 10.7% to 7% \u2014 sell approximately 510 shares and redeploy 50% to Dividend Stocks and 50% to Japan TOPIX",
+        "[MEDIUM] Scale Japan TOPIX from 1.8% to 5% \u2014 purchase approximately 180 additional shares over 60 days via bi-weekly orders",
+        "[MEDIUM] Document and pre-commit to Dalio's three-stage rebalancing protocol for equity drawdowns at -15%, -25%, and -30% thresholds",
+        "[LOW] At the next quarterly review, evaluate replacing AI Tech TOP10 entirely with a plain-vanilla AI/tech ETF that does not sacrifice upside through covered-call writing",
+        "[LOW] Monitor 30-year US Treasury yields; if yields rise above 5.5%, accelerate the Treasury Bond accumulation as a tactical opportunity"
+      ],
+      "market_outlook": "The macro environment as of March 2026 presents a mixed but navigable landscape for this portfolio. US AI infrastructure spending remains robust, with hyperscaler capex guidance reaffirmed for 2026-2028, supporting the AI Core Power thesis. However, equity valuations across US large-cap tech are elevated at 25-35x forward earnings, leaving limited room for multiple expansion \u2014 returns must come from earnings delivery, not re-rating.\n\nInterest rate policy remains the swing factor. The Fed's posture is data-dependent, and the 30-year Treasury at current levels offers attractive entry points for long-duration bonds if the cycle turns. The won-hedged structure of the Treasury ETF neutralizes the currency variable, making the allocation decision purely about rate directionality.\n\nJapan stands out as the most favorable risk-reward opportunity in developed markets. The TOPIX 100 at 13-15x earnings with structural governance catalysts (buybacks, unwinds, management accountability) offers a rare combination of value and catalyst in a global market dominated by expensive growth.\n\nThe primary risk scenario is a simultaneous equity drawdown (-20 to -30%) triggered by AI capex disappointment or geopolitical escalation, combined with rising rates that prevent Treasury rally. In this tail scenario, gold serves as the last line of defense, and the 12% allocation plus 15% cash buffer provides approximately 43.5M KRW of non-equity capital for rebalancing.",
+      "persona_discussions": {
+        "Cathie Wood": "Lynch will argue my growth picks are overvalued, and he has a point on AI Tech TOP10 \u2014 the covered-call structure makes aggressive accumulation unwise. But AI Core Power is not a bubble; it tracks physical capex flows with multi-year visibility, not speculative software multiples. Dalio will insist on 30% in safe assets, and I concede the portfolio needs some ballast. But I would push the safe sleeve to be as capital-efficient as possible \u2014 gold and short-duration bonds rather than the full 18% in 30-year Treasuries he might want. The key disagreement is on cash: both Lynch and Dalio tolerate larger cash buffers. I believe time in the market dominates timing in this regime.",
+        "Peter Lynch": "Cathie is right that growth must drive this portfolio to 400M, but she underestimates the risk of concentration at peak multiples. Putting 35% in AI Core Power after a 30% run means you're buying a thematic narrative at 1.5-2.0x PEG \u2014 acceptable for a 10% position, dangerous for 35%. If hyperscaler capex guidance disappoints even modestly, this position could give back 25% quickly. Dalio's safe sleeve makes sense to me, though I would fill it with dividend growers rather than pure bonds \u2014 companies with real earnings and growing payouts provide both downside protection and inflation resilience. My main pushback to both: the most underappreciated asset here is Japan TOPIX at 13-15x earnings during a structural reform cycle. Neither is allocating enough to it.",
+        "Ray Dalio": "Cathie is right that growth drives the portfolio toward 400M, and I do not dispute the AI infrastructure thesis. But she wants 35% in a single thematic ETF that has already run 30%. If that position reverses by 25%, you lose 14.1M KRW \u2014 nearly a full year of contributions and RSU income combined. My safe sleeve protects against exactly this scenario. Lynch's valuation work is sound \u2014 his PEG analysis confirms that AI Core Power is fully valued, not cheap. Where I disagree with Lynch is on cash: he wants 18% in cash, which is dead capital. My preferred structure uses Treasury Bonds as \"productive cash\" \u2014 liquid, appreciating in crises, and deployable. The key insight both miss: it is not about the return of the growth sleeve vs. the safe sleeve. It is about the rebalancing between them during drawdowns that generates the incremental 2-4% annually. That rebalancing alpha is what keeps you on the 10.2% CAGR path even through a lost year.",
+        "Synthesis": "The three personas converge on several key themes while disagreeing sharply on concentration and risk tolerance.\n\n**Points of agreement across all three:**\nThe massive cash overweight (33.5% vs. 14% target) is the most urgent problem. All three personas recommend deploying capital, though they disagree on where. The Treasury Bond underweight at 0% vs. 18% target is the second-highest priority \u2014 even Wood concedes a minimal 5% allocation. Japan TOPIX is underappreciated at 1.8% and deserves scaling up. AI Tech TOP10's covered-call structure is problematic \u2014 Wood would hold, Lynch would trim aggressively, Dalio would hold at target.\n\n**Key debate: Growth concentration vs. diversification**\nWood wants 35% in AI Core Power. Lynch caps it at 24% based on PEG analysis showing full valuation at 1.5-2.0x. Dalio agrees with Lynch's 24% limit. The synthesis sides with Lynch and Dalio: 24-26% is the prudent ceiling for a single thematic ETF, especially one that has already appreciated 30%.\n\n**Key debate: Bonds vs. dividend equities as the safe sleeve**\nDalio insists on the full 18% Treasury Bond allocation for crash protection. Lynch prefers dividend growers (14%) that provide earnings-backed income. The synthesis blends both: 16% Treasuries for crash insurance plus 12% dividend equities for income and inflation protection.\n\n**Key debate: Cash buffer size**\nWood wants 5%, Lynch wants 18%, Dalio wants 14%. The synthesis targets 8% \u2014 enough for three months of opportunistic deployment during corrections, but not so much that it drags the CAGR below target.\n\n**Resolution:** The final allocation reflects Dalio's risk architecture (clear safe sleeve), Lynch's valuation discipline (no overconcentration, earnings-backed picks), and Wood's growth conviction (AI infrastructure as the portfolio's primary return engine). The rebalancing protocol from Dalio is adopted in full as the mechanism that reconciles growth ambition with crash resilience."
+      }
+    },
+    {
+      "date": "2026-03-13T13:48:47.040071",
+      "filename": "irp_ai_review_2026_03_13_Opus_4_6.md",
+      "allocation": {
+        "AI Core Power": {
+          "current": 0,
+          "recommended": 26.0,
+          "action": "Hold",
+          "reason": "Primary growth engine at slight overweight; consensus ceiling to avoid concentration risk"
+        },
+        "AI Tech TOP10": {
+          "current": 0,
+          "recommended": 7.0,
+          "action": "Trim",
+          "reason": "Reduce covered-call drag; redeploy proceeds to Dividend Stocks and Japan TOPIX"
+        },
+        "Dividend Stocks": {
+          "current": 0,
+          "recommended": 12.0,
+          "action": "Add",
+          "reason": "Earnings-validated compounders at fair PEG; bridge between growth and safety"
+        },
+        "Consumer Staples": {
+          "current": 0,
+          "recommended": 7.0,
+          "action": "Hold",
+          "reason": "Recession resilience and pricing power; slight underweight to fund growth"
+        },
+        "Treasury Bonds": {
+          "current": 0,
+          "recommended": 16.0,
+          "action": "Add",
+          "reason": "Crash insurance cornerstone; rallies during drawdowns; deploy from cash in 3 tranches"
+        },
+        "Gold": {
+          "current": 0,
+          "recommended": 12.0,
+          "action": "Add",
+          "reason": "Tail-risk and stagflation hedge; uncorrelated diversifier at target weight"
+        },
+        "Japan TOPIX": {
+          "current": 0,
+          "recommended": 5.0,
+          "action": "Add",
+          "reason": "Best risk-adjusted opportunity at 13-15x earnings; corporate reform catalyst"
+        },
+        "Cash": {
+          "current": 0,
+          "recommended": 15.0,
+          "action": "Deploy",
+          "reason": "Reduce from 33.5%; maintain buffer for opportunistic rebalancing during corrections"
+        }
+      },
+      "cagr": {
+        "current": 12.4,
+        "recommended": 10.6,
+        "reason": "The equity sleeve (57% across AI Core Power, AI Tech TOP10, Dividend Stocks, Consumer Staples, Japan TOPIX) targets 12-14% returns driven primarily by AI infrastructure capex and Japanese corporate reform. The safe sleeve (28% across Treasury Bonds and Gold) targets 5-7% returns but provides rebalancing fuel during drawdowns. The blended 10.6% CAGR exceeds the 10.2% target by 40bps, providing a margin of safety. Dalio's rebalancing protocol adds an estimated 1.5% over full market cycles, bringing the effective CAGR to approximately 11.5% \u2014 sufficient to reach 400M even with one significant drawdown en route."
+      },
+      "recommendations": [
+        "[HIGH] Deploy 25.8M KRW from cash into Treasury Bonds immediately \u2014 execute in 3 equal tranches (8.6M each) over 6 weeks to fill the most critical portfolio gap",
+        "[HIGH] Trim AI Tech TOP10 from 10.7% to 7% \u2014 sell approximately 510 shares and redeploy 50% to Dividend Stocks and 50% to Japan TOPIX",
+        "[MEDIUM] Scale Japan TOPIX from 1.8% to 5% \u2014 purchase approximately 180 additional shares over 60 days via bi-weekly orders",
+        "[MEDIUM] Document and pre-commit to Dalio's three-stage rebalancing protocol for equity drawdowns at -15%, -25%, and -30% thresholds",
+        "[LOW] At the next quarterly review, evaluate replacing AI Tech TOP10 entirely with a plain-vanilla AI/tech ETF that does not sacrifice upside through covered-call writing",
+        "[LOW] Monitor 30-year US Treasury yields; if yields rise above 5.5%, accelerate the Treasury Bond accumulation as a tactical opportunity"
+      ],
+      "market_outlook": "The macro environment as of March 2026 presents a mixed but navigable landscape for this portfolio. US AI infrastructure spending remains robust, with hyperscaler capex guidance reaffirmed for 2026-2028, supporting the AI Core Power thesis. However, equity valuations across US large-cap tech are elevated at 25-35x forward earnings, leaving limited room for multiple expansion \u2014 returns must come from earnings delivery, not re-rating.\n\nInterest rate policy remains the swing factor. The Fed's posture is data-dependent, and the 30-year Treasury at current levels offers attractive entry points for long-duration bonds if the cycle turns. The won-hedged structure of the Treasury ETF neutralizes the currency variable, making the allocation decision purely about rate directionality.\n\nJapan stands out as the most favorable risk-reward opportunity in developed markets. The TOPIX 100 at 13-15x earnings with structural governance catalysts (buybacks, unwinds, management accountability) offers a rare combination of value and catalyst in a global market dominated by expensive growth.\n\nThe primary risk scenario is a simultaneous equity drawdown (-20 to -30%) triggered by AI capex disappointment or geopolitical escalation, combined with rising rates that prevent Treasury rally. In this tail scenario, gold serves as the last line of defense, and the 12% allocation plus 15% cash buffer provides approximately 43.5M KRW of non-equity capital for rebalancing.",
+      "persona_discussions": {
+        "Cathie Wood": "Lynch will argue my growth picks are overvalued, and he has a point on AI Tech TOP10 \u2014 the covered-call structure makes aggressive accumulation unwise. But AI Core Power is not a bubble; it tracks physical capex flows with multi-year visibility, not speculative software multiples. Dalio will insist on 30% in safe assets, and I concede the portfolio needs some ballast. But I would push the safe sleeve to be as capital-efficient as possible \u2014 gold and short-duration bonds rather than the full 18% in 30-year Treasuries he might want. The key disagreement is on cash: both Lynch and Dalio tolerate larger cash buffers. I believe time in the market dominates timing in this regime.",
+        "Peter Lynch": "Cathie is right that growth must drive this portfolio to 400M, but she underestimates the risk of concentration at peak multiples. Putting 35% in AI Core Power after a 30% run means you're buying a thematic narrative at 1.5-2.0x PEG \u2014 acceptable for a 10% position, dangerous for 35%. If hyperscaler capex guidance disappoints even modestly, this position could give back 25% quickly. Dalio's safe sleeve makes sense to me, though I would fill it with dividend growers rather than pure bonds \u2014 companies with real earnings and growing payouts provide both downside protection and inflation resilience. My main pushback to both: the most underappreciated asset here is Japan TOPIX at 13-15x earnings during a structural reform cycle. Neither is allocating enough to it.",
+        "Ray Dalio": "Cathie is right that growth drives the portfolio toward 400M, and I do not dispute the AI infrastructure thesis. But she wants 35% in a single thematic ETF that has already run 30%. If that position reverses by 25%, you lose 14.1M KRW \u2014 nearly a full year of contributions and RSU income combined. My safe sleeve protects against exactly this scenario. Lynch's valuation work is sound \u2014 his PEG analysis confirms that AI Core Power is fully valued, not cheap. Where I disagree with Lynch is on cash: he wants 18% in cash, which is dead capital. My preferred structure uses Treasury Bonds as \"productive cash\" \u2014 liquid, appreciating in crises, and deployable. The key insight both miss: it is not about the return of the growth sleeve vs. the safe sleeve. It is about the rebalancing between them during drawdowns that generates the incremental 2-4% annually. That rebalancing alpha is what keeps you on the 10.2% CAGR path even through a lost year.",
+        "Synthesis": "The three personas converge on several key themes while disagreeing sharply on concentration and risk tolerance.\n\n**Points of agreement across all three:**\nThe massive cash overweight (33.5% vs. 14% target) is the most urgent problem. All three personas recommend deploying capital, though they disagree on where. The Treasury Bond underweight at 0% vs. 18% target is the second-highest priority \u2014 even Wood concedes a minimal 5% allocation. Japan TOPIX is underappreciated at 1.8% and deserves scaling up. AI Tech TOP10's covered-call structure is problematic \u2014 Wood would hold, Lynch would trim aggressively, Dalio would hold at target.\n\n**Key debate: Growth concentration vs. diversification**\nWood wants 35% in AI Core Power. Lynch caps it at 24% based on PEG analysis showing full valuation at 1.5-2.0x. Dalio agrees with Lynch's 24% limit. The synthesis sides with Lynch and Dalio: 24-26% is the prudent ceiling for a single thematic ETF, especially one that has already appreciated 30%.\n\n**Key debate: Bonds vs. dividend equities as the safe sleeve**\nDalio insists on the full 18% Treasury Bond allocation for crash protection. Lynch prefers dividend growers (14%) that provide earnings-backed income. The synthesis blends both: 16% Treasuries for crash insurance plus 12% dividend equities for income and inflation protection.\n\n**Key debate: Cash buffer size**\nWood wants 5%, Lynch wants 18%, Dalio wants 14%. The synthesis targets 8% \u2014 enough for three months of opportunistic deployment during corrections, but not so much that it drags the CAGR below target.\n\n**Resolution:** The final allocation reflects Dalio's risk architecture (clear safe sleeve), Lynch's valuation discipline (no overconcentration, earnings-backed picks), and Wood's growth conviction (AI infrastructure as the portfolio's primary return engine). The rebalancing protocol from Dalio is adopted in full as the mechanism that reconciles growth ambition with crash resilience."
+      }
     }
   ]
 }

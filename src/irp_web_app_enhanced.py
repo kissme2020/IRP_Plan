@@ -2172,7 +2172,7 @@ def page_export_snapshot():
         "Select all and copy (Ctrl+A, Ctrl+C):",
         value=snapshot,
         height=500,
-        key="snapshot_text",
+        key=f"snapshot_text_{'persona' if use_persona else 'standard'}",
     )
 
     if use_persona:
