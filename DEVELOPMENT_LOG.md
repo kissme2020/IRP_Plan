@@ -184,3 +184,34 @@ Each page follows: **Plan → Code → Test → User Verify → Update MDs → C
   - New `"Commodities"` category in `MARKET_INDICES` and `_MOCK_FALLBACK`
   - Added `$` USD price formatting for Commodities category in the web app
   - Total tracked indices: 8 → 13
+
+---
+
+## Feature: Three-Persona AI Review with Discussion Context
+
+### Persona Export / Import (Commit: f44316a)
+- **Date:** 2026-03-13
+- **Branch:** `feature/persona-ai-review`
+- **Files Changed:** `src/utils.py`, `src/irp_web_app_enhanced.py`, `data/sample_persona_review.md`, `test_persona_parser.py`
+- **Changes:**
+  - **`src/utils.py`**: Added `generate_persona_export()` — three-persona export template with Cathie Wood, Peter Lynch, Ray Dalio mandates. Added `parse_persona_review_md()`, `_parse_persona_section()`, `detect_review_format()`, `persona_review_to_standard()`, `normalize_asset_name()` with fuzzy `_ASSET_ALIASES` map
+  - **`src/irp_web_app_enhanced.py`**: Export page gains Standard/Three-Persona toggle. Import page auto-detects format, shows persona tabs via `_show_persona_tabs()`. Fixed orphaned `col2` reset button.
+  - Created `data/sample_persona_review.md` and `test_persona_parser.py`
+  - All 8 assets match, sums to 100%, parser tests pass
+
+### AI Review on Dashboard / Reports / Projections + Persona Discussions (Commit: 254523c)
+- **Date:** 2026-03-13
+- **Branch:** `feature/persona-ai-review`
+- **Files Changed:** `src/utils.py`, `src/irp_web_app_enhanced.py`, `data/sample_persona_review.md`, `test_persona_parser.py`
+- **Changes:**
+  - **`save_ai_review()`**: Now persists `market_outlook` and `persona_discussions` fields
+  - **`get_latest_ai_review()`**: New helper returns most recent AI review record
+  - **Dashboard**: Added "Latest AI Review" section — CAGR metric, expandable recommendations, market outlook, persona discussions
+  - **Reports**: Added "AI Review History" — last 5 reviews with expandable allocation, CAGR, recommendations, outlook, discussions
+  - **Projections**: Pre-fills Expected Return with AI-recommended CAGR (falls back to config 10.2%)
+  - **Export template**: Added `### Discussion` subsection instructions — each persona responds to/critiques others
+  - **Parser**: `_parse_persona_section()` extracts `### Discussion` content
+  - **`persona_review_to_standard()`**: Bundles per-persona + synthesis discussions into `persona_discussions` dict
+  - **`_show_persona_tabs()`**: Displays discussion in expandable "💬 Discussion with other personas" section
+  - Updated `data/sample_persona_review.md` with Discussion sections for all 3 personas + synthesis
+  - All parser tests pass including discussion extraction (4 discussion entries)

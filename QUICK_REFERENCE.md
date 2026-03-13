@@ -28,15 +28,15 @@ streamlit run src/irp_web_app_enhanced.py --server.port 8502
 
 | Page | What It Does |
 |------|-------------|
-| **Dashboard** | Portfolio balance, progress toward 400M KRW goal, growth chart |
+| **Dashboard** | Portfolio balance, progress toward 400M KRW goal, growth chart, latest AI review summary |
 | **Track Deposits** | Record monthly 600K deposits and quarterly bonuses |
 | **Market Dashboard** | Live market data (S&P 500, NASDAQ, KOSPI, VIX, USD/KRW, Gold, Oil, etc.) |
 | **Rebalancing Alerts** | Drift detection (>5%), buy/sell share counts, T+2 settlement |
 | **Plan Revision** | Compare Conservative / Moderate / Aggressive strategies |
-| **Projections** | Year-by-year forecasts and scenario analysis to 2030 |
-| **Reports** | Contributions summary, allocation pie chart, alerts |
-| **Export for AI Review** | Generate portfolio snapshot markdown for Claude/ChatGPT/Gemini |
-| **Import AI Review** | Upload AI response .md, compare allocations, apply changes |
+| **Projections** | Year-by-year forecasts (CAGR pre-filled from AI review), scenario analysis to 2030 |
+| **Reports** | Contributions summary, allocation pie chart, alerts, AI review history |
+| **Export for AI Review** | Generate portfolio snapshot markdown (Standard or Three-Persona) for Claude/ChatGPT/Gemini |
+| **Import AI Review** | Upload AI response .md (auto-detects Standard/Persona), compare allocations, apply changes |
 | **RSU Tracking** | Keysight RSU vesting schedule (2027-2030) |
 
 ---
@@ -53,14 +53,16 @@ streamlit run src/irp_web_app_enhanced.py --server.port 8502
 
 ### Quarterly AI Review
 
-1. **Export for AI Review** → copy the generated snapshot
+1. **Export for AI Review** → choose **Standard** or **Three-Persona** format → copy the generated snapshot
 2. Paste into [Claude.ai](https://claude.ai/new) (or ChatGPT / Gemini)
 3. Save the AI response as a `.md` file
-4. **Import AI Review** → upload the `.md` file
-5. Review current vs. recommended allocation side-by-side
-6. Click **Apply** to update targets (or **Reset** for Option B defaults)
-7. **Rebalancing Alerts** → check for new trade recommendations
-8. Execute trades if needed
+4. **Import AI Review** → upload the `.md` file (format auto-detected)
+5. For persona format: review per-persona tabs (allocations, CAGR, discussion context)
+6. Review current vs. recommended allocation side-by-side (SYNTHESIS used for persona format)
+7. Click **Apply** to update targets (or **Reset** for Option B defaults)
+8. Check **Dashboard** for AI review summary, **Projections** for updated CAGR
+9. **Rebalancing Alerts** → check for new trade recommendations
+10. Execute trades if needed
 
 ### Rebalancing Execution (When Alerts Fire)
 
@@ -189,4 +191,4 @@ pip install -r requirements.txt
 
 ---
 
-*Last Updated: March 12, 2026*
+*Last Updated: March 13, 2026*
