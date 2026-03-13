@@ -125,7 +125,7 @@
     "Japan TOPIX": 210,
     "Cash": 49196000
   },
-  "holdings_updated": "2026-03-11T17:35:46.021846",
+  "holdings_updated": "2026-03-12T18:05:59.370088",
   "rebalance_history": [],
   "transactions": [
     {
@@ -347,12 +347,45 @@
       "total_cost": 0,
       "notes": "",
       "created_at": "2026-03-11T18:02:17.617878"
+    },
+    {
+      "id": "8e54abf0",
+      "asset": "AI Tech TOP10",
+      "type": "buy",
+      "date": "2026-03-12",
+      "shares": 1142,
+      "price_per_share": 12085,
+      "total_cost": 13801070,
+      "notes": "",
+      "created_at": "2026-03-12T16:57:09.199110"
+    },
+    {
+      "id": "ad9bfb69",
+      "asset": "Consumer Staples",
+      "type": "buy",
+      "date": "2026-03-12",
+      "shares": 749,
+      "price_per_share": 13100,
+      "total_cost": 9811900,
+      "notes": "",
+      "created_at": "2026-03-12T16:57:51.222142"
+    },
+    {
+      "id": "518b7a14",
+      "asset": "Dividend Stocks",
+      "type": "buy",
+      "date": "2026-03-12",
+      "shares": 1186,
+      "price_per_share": 12420,
+      "total_cost": 14730120,
+      "notes": "",
+      "created_at": "2026-03-12T16:58:37.397808"
     }
   ],
   "rebalancing_settings": {
-    "frequency_days": 30,
+    "frequency_days": 15,
     "alert_threshold_pct": 5.0,
-    "last_rebalance_date": null
+    "last_rebalance_date": "2026-03-13T07:56:37.474713"
   },
   "holdings_mode": "values",
   "holdings_values": {
@@ -367,9 +400,9 @@
   },
   "shares": {
     "AI Core Power": 1663,
-    "AI Tech TOP10": 278,
-    "Dividend Stocks": 0,
-    "Consumer Staples": 0,
+    "AI Tech TOP10": 1420,
+    "Dividend Stocks": 1186,
+    "Consumer Staples": 749,
     "Treasury Bonds": 0,
     "Gold": 574,
     "Japan TOPIX": 104,

@@ -20,7 +20,12 @@ from datetime import datetime, timedelta, date
 import numpy as np
 import requests
 from functools import lru_cache
-from utils import krw_to_shares, generate_portfolio_snapshot, parse_ai_review_md, get_settlement_date, KR_TZ
+from utils import (
+    krw_to_shares, generate_portfolio_snapshot, parse_ai_review_md,
+    get_settlement_date, KR_TZ,
+    generate_persona_export, parse_persona_review_md,
+    detect_review_format, persona_review_to_standard, normalize_asset_name,
+)
 from market_data import fetch_market_data, get_usd_krw, MARKET_INDICES
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2081,6 +2086,22 @@ def page_export_snapshot():
     Use this for **quarterly strategic reviews** aligned with your 90-day rebalancing cycle.
     """)
 
+    # ── Review Mode Toggle ──
+    review_mode = st.radio(
+        "Review Mode",
+        ["Standard Review", "Three-Persona Review"],
+        index=0,
+        horizontal=True,
+        help="Standard: single AI reviewer. Persona: Cathie Wood (growth) + Peter Lynch (valuation) + Ray Dalio (crash protection)",
+    )
+    use_persona = review_mode == "Three-Persona Review"
+
+    if use_persona:
+        st.info(
+            "**Three-Persona Mode** — The AI will respond as Cathie Wood, Peter Lynch, and Ray Dalio, "
+            "each analyzing your portfolio from their perspective, then synthesize a final recommendation."
+        )
+
     data = load_data()
     progress = calculate_progress(data)
     shares = data.get('shares', get_default_holdings())
@@ -2109,7 +2130,7 @@ def page_export_snapshot():
     gains_losses, total_gain, total_gain_pct = calculate_gains_losses(current_prices)
     transactions = get_transactions()
 
-    snapshot = generate_portfolio_snapshot(
+    gen_kwargs = dict(
         holdings=holdings,
         prices=prices,
         allocation_target=ALLOCATION_TARGET,
@@ -2122,6 +2143,11 @@ def page_export_snapshot():
         total_gain_pct=total_gain_pct,
         etf_config=ETF_CONFIG,
     )
+
+    if use_persona:
+        snapshot = generate_persona_export(**gen_kwargs)
+    else:
+        snapshot = generate_portfolio_snapshot(**gen_kwargs)
 
     # Preview
     st.subheader("📄 Snapshot Preview")
@@ -2137,15 +2163,25 @@ def page_export_snapshot():
         key="snapshot_text",
     )
 
-    st.info("""
-    **How to use:**
-    1. Copy the text above
-    2. Open [Claude Web](https://claude.ai) (or another AI)
-    3. Paste the snapshot and ask for a quarterly review
-    4. Review the AI's recommendations before making changes
-    5. Save the AI response as a .md file
-    6. Import it using the **Import AI Review** page
-    """)
+    if use_persona:
+        st.info("""
+        **How to use (Three-Persona):**
+        1. Copy the text above
+        2. Open [Claude Web](https://claude.ai) (or another AI)
+        3. Paste the snapshot — the AI will respond as three personas + a synthesis
+        4. Save the full AI response as a `.md` file
+        5. Import it using the **Import AI Review** page (persona format auto-detected)
+        """)
+    else:
+        st.info("""
+        **How to use:**
+        1. Copy the text above
+        2. Open [Claude Web](https://claude.ai) (or another AI)
+        3. Paste the snapshot and ask for a quarterly review
+        4. Review the AI's recommendations before making changes
+        5. Save the AI response as a .md file
+        6. Import it using the **Import AI Review** page
+        """)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2158,7 +2194,7 @@ def page_import_ai_review():
 
     st.markdown("""
     Upload the **.md file** you received from Claude Web (or another AI).
-    The app will parse the recommended allocation and let you apply it.
+    The app auto-detects **Standard** or **Three-Persona** format and parses accordingly.
     """)
 
     uploaded = st.file_uploader(
@@ -2195,25 +2231,30 @@ def page_import_ai_review():
 
     # ── Parse the uploaded file ──
     content = uploaded.read().decode("utf-8")
-    review = parse_ai_review_md(content)
+    fmt = detect_review_format(content)
 
-    # ── Show parsed results ──
+    if fmt == "persona":
+        st.success("🎭 **Three-Persona format detected** — showing per-persona analysis + synthesis")
+        persona_result = parse_persona_review_md(content)
+        # Convert synthesis to standard format for the apply flow
+        review = persona_review_to_standard(persona_result)
+        _show_persona_tabs(persona_result)
+    else:
+        st.info("📄 Standard review format detected")
+        review = parse_ai_review_md(content)
+        persona_result = None
+
+    # ── Show parsed results (synthesis / standard) ──
     st.divider()
+    st.subheader("📊 Recommended Allocation Changes" + (" (from SYNTHESIS)" if persona_result else ""))
 
-    # 1) Allocation comparison
+    # Build comparison table from review
     if review["allocation"]:
-        st.subheader("📊 Recommended Allocation Changes")
-
         comparison_rows = []
         valid_assets = {}
         for asset_name, info in review["allocation"].items():
-            # Match to our known asset names
-            matched_key = None
-            for key in ALLOCATION_TARGET:
-                if key.lower() == asset_name.lower():
-                    matched_key = key
-                    break
-            if not matched_key:
+            matched_key = normalize_asset_name(asset_name)
+            if not matched_key or matched_key not in ALLOCATION_TARGET:
                 continue
 
             current_target = ALLOCATION_TARGET[matched_key] * 100
@@ -2232,9 +2273,8 @@ def page_import_ai_review():
 
         if comparison_rows:
             df = pd.DataFrame(comparison_rows)
-            st.dataframe(df, width="stretch", hide_index=True)
+            st.dataframe(df, use_container_width=True, hide_index=True)
 
-            # Validation
             total_pct = sum(valid_assets.values())
             if abs(total_pct - 100) > 1:
                 st.warning(f"⚠️ Recommended allocations sum to {total_pct:.0f}% (should be 100%). Adjust before applying.")
@@ -2265,15 +2305,17 @@ def page_import_ai_review():
     if review["recommendations"]:
         st.subheader("🎯 Key Recommendations")
         for rec in review["recommendations"]:
-            if rec.upper().startswith("HIGH"):
+            # Handle both "[HIGH] text" and "HIGH: text" patterns
+            rec_upper = rec.upper()
+            if rec_upper.startswith("[HIGH]") or rec_upper.startswith("HIGH"):
                 st.error(f"🔴 {rec}")
-            elif rec.upper().startswith("MEDIUM"):
+            elif rec_upper.startswith("[MEDIUM]") or rec_upper.startswith("MEDIUM"):
                 st.warning(f"🟡 {rec}")
             else:
                 st.info(f"🔵 {rec}")
 
     # 4) Market Outlook
-    if review["market_outlook"]:
+    if review.get("market_outlook"):
         st.subheader("🌍 Market Outlook")
         st.markdown(review["market_outlook"])
 
@@ -2308,18 +2350,21 @@ def page_import_ai_review():
 
         col1, col2 = st.columns(2)
         with col1:
-            if st.button("🚀 Apply Recommended Allocation", type="primary", width="stretch"):
+            source_label = "persona_ai_review" if persona_result else "ai_review"
+            if st.button("🚀 Apply Recommended Allocation", type="primary", use_container_width=True):
                 new_target = {asset: pct / 100.0 for asset, pct in valid_assets.items()}
                 notes = f"From AI review: {uploaded.name}"
+                if persona_result:
+                    personas_found = list(persona_result.get('personas', {}).keys())
+                    notes += f" | Personas: {', '.join(personas_found)}"
                 if review["recommendations"]:
                     notes += " | " + "; ".join(review["recommendations"][:3])
-                save_allocation_target(new_target, source="ai_review", notes=notes)
+                save_allocation_target(new_target, source=source_label, notes=notes)
                 save_ai_review(review, uploaded.name)
                 st.success("✅ Allocation targets updated! Go to **Rebalancing Alerts** to see new trade recommendations.")
                 st.balloons()
-
         with col2:
-            if st.button("🔄 Reset to Default (Option B)", width="stretch"):
+            if st.button("🔄 Reset to Default (Option B)", use_container_width=True):
                 save_allocation_target(
                     dict(ALLOCATION_TARGET_DEFAULT),
                     source="reset",
@@ -2327,6 +2372,63 @@ def page_import_ai_review():
                 )
                 st.success("✅ Reset to default Option B allocation.")
                 st.rerun()
+
+
+def _show_persona_tabs(persona_result: dict):
+    """Display per-persona analysis in tabs when a persona-format review is imported."""
+    personas = persona_result.get("personas", {})
+    if not personas:
+        return
+
+    persona_names = list(personas.keys())
+    tab_labels = [f"🎭 {name}" for name in persona_names]
+
+    tabs = st.tabs(tab_labels)
+    for tab, name in zip(tabs, persona_names):
+        pdata = personas[name]
+        with tab:
+            st.markdown(f"### {name}'s Analysis")
+
+            # Allocation table
+            if pdata.get("allocation"):
+                alloc_rows = []
+                for asset, info in pdata["allocation"].items():
+                    current_target = ALLOCATION_TARGET.get(asset, 0) * 100
+                    alloc_rows.append({
+                        "Asset": asset,
+                        "Current %": f"{current_target:.0f}%",
+                        f"{name}'s %": f"{info['recommended']:.0f}%",
+                        "Action": info.get("action", ""),
+                        "Reason": info.get("reason", "")[:80],
+                    })
+                if alloc_rows:
+                    st.dataframe(pd.DataFrame(alloc_rows), use_container_width=True, hide_index=True)
+
+            # CAGR
+            cagr = pdata.get("cagr", {})
+            if cagr.get("growth") or cagr.get("blended"):
+                cols = st.columns(3)
+                with cols[0]:
+                    if cagr.get("growth"):
+                        st.metric("Growth CAGR", f"{cagr['growth']}%")
+                with cols[1]:
+                    if cagr.get("blended"):
+                        st.metric("Blended CAGR", f"{cagr['blended']}%")
+                with cols[2]:
+                    if cagr.get("reason"):
+                        st.caption(f"Reason: {cagr['reason']}")
+
+            # Recommendations
+            if pdata.get("recommendations"):
+                st.markdown("**Key Recommendations:**")
+                for rec in pdata["recommendations"]:
+                    rec_upper = rec.upper()
+                    if "[HIGH]" in rec_upper:
+                        st.error(f"🔴 {rec}")
+                    elif "[MEDIUM]" in rec_upper:
+                        st.warning(f"🟡 {rec}")
+                    else:
+                        st.info(f"🔵 {rec}")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

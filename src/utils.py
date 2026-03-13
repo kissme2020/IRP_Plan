@@ -457,3 +457,542 @@ def parse_ai_review_md(content: str) -> dict:
         result["market_outlook"] = outlook_section.group(1).strip()
 
     return result
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PERSONA-BASED AI REVIEW: EXPORT & IMPORT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Canonical asset names used throughout the app
+CANONICAL_ASSETS = [
+    "AI Core Power", "AI Tech TOP10", "Dividend Stocks", "Consumer Staples",
+    "Treasury Bonds", "Gold", "Japan TOPIX", "Cash",
+]
+
+# Fuzzy aliases that AI personas might use instead of canonical names
+_ASSET_ALIASES = {
+    "ai core power": "AI Core Power",
+    "ai core": "AI Core Power",
+    "kodex 미국ai전력핵심인프라": "AI Core Power",
+    "ai tech top10": "AI Tech TOP10",
+    "ai tech": "AI Tech TOP10",
+    "kodex 미국ai테크top10타겟커버드콜": "AI Tech TOP10",
+    "dividend stocks": "Dividend Stocks",
+    "dividend stock": "Dividend Stocks",
+    "dividend aristocrats": "Dividend Stocks",
+    "dividend quality": "Dividend Stocks",
+    "kodex 미국배당다우존스": "Dividend Stocks",
+    "consumer staples": "Consumer Staples",
+    "defensive staples": "Consumer Staples",
+    "staples": "Consumer Staples",
+    "kodex 미국s&p500필수소비재": "Consumer Staples",
+    "treasury bonds": "Treasury Bonds",
+    "us treasury bonds": "Treasury Bonds",
+    "bonds": "Treasury Bonds",
+    "kodex 미국30년국채액티브(h)": "Treasury Bonds",
+    "gold": "Gold",
+    "gold / gold etf": "Gold",
+    "kodex 골드선물(h)": "Gold",
+    "japan topix": "Japan TOPIX",
+    "japan robotics / ai": "Japan TOPIX",
+    "kodex 일본topix100": "Japan TOPIX",
+    "cash": "Cash",
+    "short-term cash / money market": "Cash",
+    "cash / money market": "Cash",
+}
+
+
+def normalize_asset_name(raw_name: str) -> str | None:
+    """Match a raw asset name (possibly from AI output) to a canonical name.
+
+    Returns the canonical name, or None if no match is found.
+    """
+    cleaned = raw_name.strip()
+
+    # Exact match (case-insensitive)
+    for canon in CANONICAL_ASSETS:
+        if cleaned.lower() == canon.lower():
+            return canon
+
+    # Alias lookup
+    alias_hit = _ASSET_ALIASES.get(cleaned.lower())
+    if alias_hit:
+        return alias_hit
+
+    # Substring containment (e.g., "AI Core Power (50% of growth)" → AI Core Power)
+    for canon in CANONICAL_ASSETS:
+        if canon.lower() in cleaned.lower():
+            return canon
+
+    return None
+
+
+def generate_persona_export(
+    holdings: dict,
+    prices: dict,
+    allocation_target: dict,
+    portfolio_value: float,
+    progress: dict,
+    years_remaining: float,
+    transactions: list,
+    gains_losses: dict,
+    total_gain: float,
+    total_gain_pct: float,
+    etf_config: dict,
+) -> str:
+    """Generate a markdown snapshot for AI review using three investment personas.
+
+    Builds on the standard snapshot but adds persona-specific mandates and
+    a strict response format that the persona parser can reliably extract.
+    """
+    today = datetime.now().strftime("%B %d, %Y")
+    months_left = int(years_remaining * 12)
+
+    lines = [
+        f"# IRP Portfolio Snapshot — {today}",
+        f"# Three-Persona Strategic Review",
+        "",
+        "## Goal",
+        f"- Target: {progress['target_goal']/1e6:.0f}M KRW by Dec 2030 ({months_left} months remaining)",
+        f"- Current portfolio value: {portfolio_value/1e6:.1f}M KRW ({progress['progress_goal']:.1f}% of goal)",
+        f"- Remaining to goal: {progress['remaining_to_goal']/1e6:.1f}M KRW",
+        "- Monthly contribution: 600K KRW + quarterly bonuses",
+        "- RSU: 4 tranches (2027-2030), ~6.6M KRW each after-tax",
+        "- Strategy: Option B (Moderate), 10.2% target CAGR",
+        "",
+        "## Current Holdings",
+        "| Asset | Shares | Price (KRW) | Value (KRW) | Alloc % | Target % | Drift |",
+        "|-------|--------|-------------|-------------|---------|----------|-------|",
+    ]
+
+    for asset in allocation_target:
+        target_pct = allocation_target[asset] * 100
+        price = prices.get(asset, {}).get('price', 0)
+        value = holdings.get(asset, 0)
+        alloc_pct = (value / portfolio_value * 100) if portfolio_value > 0 else 0
+        drift = alloc_pct - target_pct
+
+        if asset == 'Cash':
+            lines.append(
+                f"| {asset} | - | - | {value:,.0f} | {alloc_pct:.1f}% | {target_pct:.0f}% | {drift:+.1f}% |"
+            )
+        else:
+            shares = int(value / price) if price > 0 else 0
+            lines.append(
+                f"| {asset} | {shares:,} | {price:,.0f} | {value:,.0f} | {alloc_pct:.1f}% | {target_pct:.0f}% | {drift:+.1f}% |"
+            )
+
+    lines.append(f"| **TOTAL** | | | **{portfolio_value:,.0f}** | **100%** | **100%** | |")
+
+    # Drift alerts
+    lines.append("")
+    lines.append("## Drift Alerts (>5%)")
+    alerts_found = False
+    for asset in allocation_target:
+        target_pct = allocation_target[asset] * 100
+        value = holdings.get(asset, 0)
+        alloc_pct = (value / portfolio_value * 100) if portfolio_value > 0 else 0
+        drift = alloc_pct - target_pct
+        if abs(drift) > 5:
+            direction = "Overweight" if drift > 0 else "Underweight"
+            priority = "HIGH" if abs(drift) > 10 else "MEDIUM"
+            lines.append(f"- **{asset}**: {direction} by {abs(drift):.1f}% ({priority} priority)")
+            alerts_found = True
+    if not alerts_found:
+        lines.append("- All assets within 5% of target. No immediate rebalancing needed.")
+
+    # Cost basis / gains
+    lines.append("")
+    lines.append("## Unrealized Gains/Losses (FIFO)")
+    lines.append("| Asset | Avg Cost | Current Price | Unrealized Gain | Gain % |")
+    lines.append("|-------|----------|---------------|-----------------|--------|")
+    for asset, gl in gains_losses.items():
+        lines.append(
+            f"| {asset} | {gl['avg_cost_basis']:,.0f} | {gl['current_price']:,.0f} "
+            f"| {gl['unrealized_gain']:+,.0f} | {gl['gain_pct']:+.1f}% |"
+        )
+    lines.append(f"| **TOTAL** | | | **{total_gain:+,.0f}** | **{total_gain_pct:+.1f}%** |")
+
+    # Recent transactions
+    lines.append("")
+    lines.append("## Recent Transactions (last 90 days)")
+    cutoff = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
+    recent = [t for t in transactions if t.get('date', '') >= cutoff]
+    if recent:
+        for t in recent[:15]:
+            lines.append(
+                f"- {t['date']}: {t['type'].upper()} {t['shares']} shares {t['asset']} "
+                f"@ {t['price_per_share']:,.0f} KRW"
+            )
+    else:
+        lines.append("- No transactions in the last 90 days.")
+
+    # ETF reference
+    lines.append("")
+    lines.append("## ETF Reference")
+    lines.append("| Asset | Korean Name | Ticker | Type |")
+    lines.append("|-------|-------------|--------|------|")
+    for asset, cfg in etf_config.items():
+        if cfg.get('code'):
+            lines.append(f"| {asset} | {cfg.get('name_kr', '')} | {cfg['code']} | {cfg.get('type', '')} |")
+
+    # ── Three-Persona Mandates ──
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+    lines.append("## Three-Persona Review Mandates")
+    lines.append("")
+    lines.append("I want you to analyze this portfolio through three expert personas.")
+    lines.append("Each persona has a specific mandate (question to answer).")
+    lines.append("")
+    lines.append("### PERSONA 1: Cathie Wood — Growth Maximization")
+    lines.append('**Mandate:** "Which are the most powerful growth ETFs to fill 70% of my portfolio with, in order to double my capital within five years?"')
+    lines.append("- Evaluate which of the 8 assets should form the growth sleeve")
+    lines.append("- Provide CAGR targets for the growth sleeve")
+    lines.append("- Be specific about allocation percentages and entry strategy")
+    lines.append("")
+    lines.append("### PERSONA 2: Peter Lynch — Bubble Reality Check")
+    lines.append('**Mandate:** "Are the assets Wood selected not a bubble? Isn\'t there a \'reasonable\' alternative backed by actual earnings?"')
+    lines.append("- Apply PEG ratio and earnings-yield tests to Cathie's picks")
+    lines.append("- Identify which are fairly valued vs. overpriced")
+    lines.append("- Suggest earnings-backed alternatives where needed")
+    lines.append("")
+    lines.append("### PERSONA 3: Ray Dalio — Crash-Proof Safe Sleeve")
+    lines.append('**Mandate:** "How should the remaining 30% be structured in safe assets so that even if the stock market crashes by -30%, my total net worth doesn\'t deviate from the path toward 400 million?"')
+    lines.append("- Design the 30% safe sleeve with specific allocations")
+    lines.append("- Model crash scenarios (-30% equity drawdown)")
+    lines.append("- Show how rebalancing during crashes recovers the path")
+    lines.append("")
+
+    # ── Strict response format ──
+    lines.append("---")
+    lines.append("")
+    lines.append("## Response Format Instructions")
+    lines.append("")
+    lines.append("I will import your response as a .md file into my portfolio app.")
+    lines.append("**You MUST follow this EXACT format** — my parser depends on it.")
+    lines.append("")
+    lines.append("### Rules")
+    lines.append("1. Structure your analysis in EXACTLY these sections, in this order:")
+    lines.append("   - `## PERSONA 1: Cathie Wood` (growth analysis)")
+    lines.append("   - `## PERSONA 2: Peter Lynch` (valuation check)")
+    lines.append("   - `## PERSONA 3: Ray Dalio` (safe sleeve design)")
+    lines.append("   - `## SYNTHESIS` (integrated final recommendation)")
+    lines.append("2. Each PERSONA section MUST contain a subsection `### Recommended Allocation` with this EXACT table format:")
+    lines.append("")
+    lines.append("   | Asset | % of Total | Action | Reason |")
+    lines.append("   |-------|-----------|--------|--------|")
+    lines.append("   | AI Core Power | [number] | Hold/Trim/Add | [reason] |")
+    lines.append("   | ... (all 8 assets) | ... | ... | ... |")
+    lines.append("")
+    lines.append("3. Each PERSONA section MUST contain a subsection `### CAGR Assessment` with:")
+    lines.append("   - Growth CAGR: [number]%")
+    lines.append("   - Blended CAGR: [number]%")
+    lines.append("   - Reason: [text]")
+    lines.append("")
+    lines.append("4. Each PERSONA section MUST contain a subsection `### Key Recommendations` with bullets:")
+    lines.append("   - HIGH: [description]")
+    lines.append("   - MEDIUM: [description]")
+    lines.append("   - LOW: [description]")
+    lines.append("")
+    lines.append("5. The `## SYNTHESIS` section MUST contain:")
+    lines.append("   - `### Recommended Allocation` — the FINAL integrated table (same format as persona tables)")
+    lines.append("   - `### CAGR Assessment` — blended view")
+    lines.append("   - `### Key Recommendations` — prioritized action items")
+    lines.append("   - `### Market Outlook` — macro view")
+    lines.append("   - `### Implementation Plan` — phased execution steps")
+    lines.append("")
+    lines.append("6. Use EXACTLY these 8 asset names (spelled exactly): AI Core Power, AI Tech TOP10, Dividend Stocks, Consumer Staples, Treasury Bonds, Gold, Japan TOPIX, Cash")
+    lines.append("7. All `% of Total` values in each table MUST be plain numbers that sum to exactly 100")
+    lines.append("8. You may add rich analysis text WITHIN each persona section, but keep the subsection headers exact")
+    lines.append("9. Do NOT wrap the response in a code fence — output as plain markdown")
+    lines.append("")
+    lines.append("### Template (each persona section follows this pattern)")
+    lines.append("")
+    lines.append("```")
+    lines.append("## PERSONA 1: Cathie Wood")
+    lines.append("")
+    lines.append("[Analysis text...]")
+    lines.append("")
+    lines.append("### Recommended Allocation")
+    lines.append("")
+    lines.append("| Asset | % of Total | Action | Reason |")
+    lines.append("|-------|-----------|--------|--------|")
+    lines.append("| AI Core Power | 35 | Add | [reason] |")
+    lines.append("| AI Tech TOP10 | 15 | Hold | [reason] |")
+    lines.append("| Dividend Stocks | 7 | Trim | [reason] |")
+    lines.append("| Consumer Staples | 3 | Hold | [reason] |")
+    lines.append("| Treasury Bonds | 12 | Add | [reason] |")
+    lines.append("| Gold | 5 | Hold | [reason] |")
+    lines.append("| Japan TOPIX | 0 | Eliminate | [reason] |")
+    lines.append("| Cash | 23 | Deploy | [reason] |")
+    lines.append("")
+    lines.append("### CAGR Assessment")
+    lines.append("")
+    lines.append("- Growth CAGR: 17.1%")
+    lines.append("- Blended CAGR: 11.5%")
+    lines.append("- Reason: [explanation]")
+    lines.append("")
+    lines.append("### Key Recommendations")
+    lines.append("")
+    lines.append("- HIGH: [action]")
+    lines.append("- MEDIUM: [action]")
+    lines.append("- LOW: [action]")
+    lines.append("```")
+    lines.append("")
+    lines.append("The `## SYNTHESIS` section uses the same subsection format but adds `### Market Outlook` and `### Implementation Plan`.")
+    lines.append("")
+
+    return "\n".join(lines)
+
+
+def parse_persona_review_md(content: str) -> dict:
+    """Parse a three-persona AI review markdown file.
+
+    Returns:
+        {
+            "format": "persona",
+            "personas": {
+                "Cathie Wood": {"allocation": {...}, "cagr": {...}, "recommendations": [...], "raw": str},
+                "Peter Lynch": {"allocation": {...}, "cagr": {...}, "recommendations": [...], "raw": str},
+                "Ray Dalio":   {"allocation": {...}, "cagr": {...}, "recommendations": [...], "raw": str},
+            },
+            "synthesis": {
+                "allocation": {...},
+                "cagr": {...},
+                "recommendations": [...],
+                "market_outlook": str,
+                "implementation_plan": str,
+            },
+            "raw": str,
+        }
+    """
+    result = {
+        "format": "persona",
+        "personas": {},
+        "synthesis": {
+            "allocation": {},
+            "cagr": {"growth": None, "blended": None, "reason": ""},
+            "recommendations": [],
+            "market_outlook": "",
+            "implementation_plan": "",
+        },
+        "raw": content,
+    }
+
+    # ── Split into persona sections ──
+    # Match: ## PERSONA N: Name  or  ## SYNTHESIS
+    section_pattern = re.compile(
+        r"^##\s+(?:PERSONA\s+\d+\s*:\s*(.+?)|(SYNTHESIS))\s*$",
+        re.MULTILINE | re.IGNORECASE,
+    )
+    section_starts = list(section_pattern.finditer(content))
+
+    if not section_starts:
+        # Not a persona-format file; return empty
+        return result
+
+    for i, m in enumerate(section_starts):
+        start = m.start()
+        end = section_starts[i + 1].start() if i + 1 < len(section_starts) else len(content)
+        section_text = content[start:end]
+
+        persona_name = m.group(1)  # e.g., "Cathie Wood" or None
+        is_synthesis = m.group(2) is not None
+
+        if is_synthesis:
+            parsed = _parse_persona_section(section_text)
+            result["synthesis"]["allocation"] = parsed["allocation"]
+            result["synthesis"]["cagr"] = parsed["cagr"]
+            result["synthesis"]["recommendations"] = parsed["recommendations"]
+            # Market Outlook
+            outlook = re.search(
+                r"###\s*Market Outlook\s*\n(.*?)(?=\n### |\n## |\Z)",
+                section_text, re.DOTALL | re.IGNORECASE,
+            )
+            if outlook:
+                result["synthesis"]["market_outlook"] = outlook.group(1).strip()
+            # Implementation Plan
+            impl = re.search(
+                r"###\s*Implementation Plan\s*\n(.*?)(?=\n### |\n## |\Z)",
+                section_text, re.DOTALL | re.IGNORECASE,
+            )
+            if impl:
+                result["synthesis"]["implementation_plan"] = impl.group(1).strip()
+        elif persona_name:
+            # Clean up persona name (e.g., strip "—" suffixes like "Cathie Wood — Growth Maximization")
+            clean_name = re.split(r"\s*[—–-]\s*", persona_name.strip())[0].strip()
+            parsed = _parse_persona_section(section_text)
+            parsed["raw"] = section_text
+            result["personas"][clean_name] = parsed
+
+    return result
+
+
+def _parse_persona_section(section_text: str) -> dict:
+    """Parse allocation, CAGR, and recommendations from a persona (or synthesis) section."""
+    parsed = {
+        "allocation": {},
+        "cagr": {"growth": None, "blended": None, "reason": ""},
+        "recommendations": [],
+    }
+
+    # ── Allocation table ──
+    # Look for ### Recommended Allocation (or ## Recommended Allocation for backward compat)
+    alloc_pattern = re.compile(
+        r"#{2,3}\s*Recommended Allocation\s*\n"
+        r"\|.*\|\s*\n"
+        r"\|[-| ]+\|\s*\n"
+        r"((?:\|.*\|\s*\n?)+)",
+        re.IGNORECASE,
+    )
+    match = alloc_pattern.search(section_text)
+    if match:
+        rows_text = match.group(1).strip()
+        for row in rows_text.split("\n"):
+            cells = [c.strip() for c in row.split("|")]
+            cells = [c for c in cells if c]
+            if len(cells) < 2:
+                continue
+
+            raw_asset = cells[0].strip()
+            # Skip total/subtotal rows
+            if raw_asset.lower().startswith(("**total", "total", "**growth", "**safe")):
+                continue
+
+            canonical = normalize_asset_name(raw_asset)
+            if not canonical:
+                continue
+
+            # Try to find percentage: look for first numeric value
+            pct = 0.0
+            for cell in cells[1:]:
+                try:
+                    val = float(re.sub(r"[^0-9.]", "", cell))
+                    if 0 <= val <= 100:
+                        pct = val
+                        break
+                except (ValueError, IndexError):
+                    continue
+
+            # Action and reason from remaining cells
+            action = ""
+            reason = ""
+            if len(cells) >= 3:
+                # The action cell is typically after the percentage
+                for cell_idx in range(2, len(cells)):
+                    cell_val = cells[cell_idx].strip()
+                    # Skip cells that look like numbers/percentages
+                    if re.match(r"^[\d.%\s+\-]*$", cell_val):
+                        continue
+                    if not action:
+                        action = cell_val
+                    elif not reason:
+                        reason = cell_val
+                        break
+
+            parsed["allocation"][canonical] = {
+                "current": 0,  # Will be filled by the caller
+                "recommended": pct,
+                "action": action,
+                "reason": reason,
+            }
+
+    # ── CAGR Assessment ──
+    cagr_block = re.search(
+        r"#{2,3}\s*CAGR Assessment\s*\n(.*?)(?=\n#{2,3} |\n## |\Z)",
+        section_text, re.DOTALL | re.IGNORECASE,
+    )
+    if cagr_block:
+        block = cagr_block.group(1)
+        growth_m = re.search(r"Growth\s*CAGR\s*:?\s*([\d.]+)", block, re.IGNORECASE)
+        blended_m = re.search(r"Blended\s*CAGR\s*:?\s*([\d.]+)", block, re.IGNORECASE)
+        # Also try "Current assumption" / "Recommended" format (backward compat)
+        current_m = re.search(r"Current\s*assumption\s*:?\s*([\d.]+)", block, re.IGNORECASE)
+        rec_m = re.search(r"Recommended\s*:?\s*([\d.]+)", block, re.IGNORECASE)
+        reason_m = re.search(r"Reason\s*:?\s*(.+?)(?:\n|$)", block, re.IGNORECASE)
+
+        if growth_m:
+            parsed["cagr"]["growth"] = float(growth_m.group(1))
+        elif current_m:
+            parsed["cagr"]["growth"] = float(current_m.group(1))
+
+        if blended_m:
+            parsed["cagr"]["blended"] = float(blended_m.group(1))
+        elif rec_m:
+            parsed["cagr"]["blended"] = float(rec_m.group(1))
+
+        if reason_m:
+            parsed["cagr"]["reason"] = reason_m.group(1).strip()
+
+    # ── Key Recommendations ──
+    rec_block = re.search(
+        r"#{2,3}\s*Key Recommendations\s*\n(.*?)(?=\n#{2,3} |\n## |\Z)",
+        section_text, re.DOTALL | re.IGNORECASE,
+    )
+    if rec_block:
+        for line in rec_block.group(1).strip().split("\n"):
+            line = line.strip()
+            bullet = re.match(r"-\s*(HIGH|MEDIUM|LOW)\s*:\s*(.+)", line, re.IGNORECASE)
+            if bullet:
+                prio = bullet.group(1).upper()
+                desc = bullet.group(2).strip()
+                parsed["recommendations"].append(f"[{prio}] {desc}")
+
+    return parsed
+
+
+def detect_review_format(content: str) -> str:
+    """Detect whether an AI review file is 'persona' or 'standard' format.
+
+    Returns 'persona' if it contains persona section headers, otherwise 'standard'.
+    """
+    if re.search(r"^##\s+PERSONA\s+\d+\s*:", content, re.MULTILINE | re.IGNORECASE):
+        return "persona"
+    if re.search(r"^##\s+SYNTHESIS", content, re.MULTILINE | re.IGNORECASE):
+        return "persona"
+    return "standard"
+
+
+def persona_review_to_standard(persona_result: dict) -> dict:
+    """Convert persona review result to the standard format for backward compatibility.
+
+    Uses the SYNTHESIS section as the canonical allocation to apply.
+    Falls back to averaging persona allocations if synthesis is missing.
+    """
+    synth = persona_result.get("synthesis", {})
+    alloc = synth.get("allocation", {})
+
+    # If synthesis has no allocation, merge from personas
+    if not alloc:
+        persona_allocs = {}
+        count = 0
+        for pname, pdata in persona_result.get("personas", {}).items():
+            for asset, info in pdata.get("allocation", {}).items():
+                if asset not in persona_allocs:
+                    persona_allocs[asset] = []
+                persona_allocs[asset].append(info["recommended"])
+            count += 1
+        if count > 0:
+            alloc = {}
+            for asset, vals in persona_allocs.items():
+                avg = sum(vals) / len(vals)
+                alloc[asset] = {
+                    "current": 0,
+                    "recommended": round(avg, 1),
+                    "action": "Review",
+                    "reason": f"Average of {len(vals)} persona(s)",
+                }
+
+    cagr = synth.get("cagr", {})
+    return {
+        "allocation": alloc,
+        "cagr": {
+            "current": cagr.get("growth"),
+            "recommended": cagr.get("blended"),
+            "reason": cagr.get("reason", ""),
+        },
+        "recommendations": synth.get("recommendations", []),
+        "market_outlook": synth.get("market_outlook", ""),
+        "raw": persona_result.get("raw", ""),
+    }
