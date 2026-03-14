@@ -1037,9 +1037,36 @@ def persona_review_to_standard(persona_result: dict) -> dict:
 # CLAUDE CLI INTEGRATION
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _find_claude_exe() -> str | None:
+    """Locate the claude CLI executable.
+
+    Checks PATH first, then falls back to known install locations
+    (Streamlit may not inherit the full user PATH).
+    """
+    found = shutil.which("claude")
+    if found:
+        return found
+
+    # Known install locations on Windows / Linux / macOS
+    home = Path.home()
+    candidates = [
+        home / ".local" / "bin" / "claude.exe",
+        home / ".local" / "bin" / "claude",
+        home / "AppData" / "Roaming" / "npm" / "claude.cmd",
+        home / "AppData" / "Roaming" / "npm" / "claude",
+        home / "AppData" / "Local" / "npm" / "claude.cmd",
+        home / "AppData" / "Local" / "npm" / "claude",
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+
+    return None
+
+
 def is_claude_cli_available() -> bool:
-    """Check whether the 'claude' CLI is installed and on PATH."""
-    return shutil.which("claude") is not None
+    """Check whether the 'claude' CLI is installed."""
+    return _find_claude_exe() is not None
 
 
 def run_claude_cli(
@@ -1066,7 +1093,8 @@ def run_claude_cli(
             "elapsed_seconds": float,
         }
     """
-    if not is_claude_cli_available():
+    claude_exe = _find_claude_exe()
+    if not claude_exe:
         return {
             "success": False,
             "response": "",
@@ -1076,7 +1104,7 @@ def run_claude_cli(
         }
 
     cmd = [
-        "claude",
+        claude_exe,
         "-p",
         "--model", model,
         "--output-format", "text",
