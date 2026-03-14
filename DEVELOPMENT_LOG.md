@@ -223,3 +223,14 @@ Each feature follows: **Plan → Code → Test → User Verify → Update MDs �
   - **`test_claude_cli.py`**: 32 unit tests covering CLI detection, success/failure/timeout paths, save_review_md, end-to-end parse, budget flag passthrough
   - **Quarterly workflow reduced from 8 manual steps to 3** (generate → review → apply)
   - Documentation updated: README.md (feature description, quarterly workflow Option A/B, version history), QUICK_REFERENCE.md (page table, workflow steps)
+
+### Portfolio Snapshots — On-Demand + Auto Mid-Month
+- **Date:** 2026-03-14
+- **Files Changed:** `src/utils.py`, `src/irp_web_app_enhanced.py`, `test_portfolio_snapshots.py`, `CLAUDE.md`, `QUICK_REFERENCE.md`, `DEVELOPMENT_LOG.md`
+- **Changes:**
+  - **`utils.py`**: Added `is_kr_business_day()`, `should_auto_snapshot()`, `create_portfolio_snapshot()` — reuses existing `KR_TZ`, `KR_HOLIDAYS` for Korean business day logic. Auto-snapshot triggers on first business day ≥ 15th if no snapshot exists for that month. Skips weekends and Korean holidays (including substitute holidays).
+  - **`irp_web_app_enhanced.py`**: Added `save_portfolio_snapshot()`, `get_portfolio_snapshots()`, `check_and_run_auto_snapshot()`, `_render_portfolio_history_chart()`. Dashboard gains "Portfolio Snapshots" section: on-demand button with optional note, Portfolio History line chart (auto=green circles, manual=orange diamonds) with 400M goal and 300M floor lines, snapshot history table. Auto-check runs in `main()` on every app launch. Backward-compatible migration for `portfolio_snapshots` key in `load_data()`.
+  - **`test_portfolio_snapshots.py`**: 28 unit tests covering `is_kr_business_day` (weekends, holidays, business days), `should_auto_snapshot` (before 15th, on 15th, existing snapshot, weekend 15th, substitute holiday, first biz day, cross-month), `create_portfolio_snapshot` (values, totals, allocation, triggers, empty portfolio).
+  - **Snapshot data:** date, trigger (auto/manual), shares, prices, values, total_value, allocation_pct, allocation_targets, note
+  - **Design rationale:** Company deposit arrives end-of-month → ETF rebalancing takes ~2 weeks → mid-month snapshot captures settled post-rebalance state
+  - **Verification:** Scheduled for 2026-03-16 (Monday) — first Korean business day ≥ 15th for March 2026. The 15th (Sunday) will be skipped; auto-snapshot should trigger on the 16th.

@@ -28,7 +28,7 @@ streamlit run src/irp_web_app_enhanced.py --server.port 8502
 
 | Page | What It Does |
 |------|-------------|
-| **Dashboard** | Portfolio balance, progress toward 400M KRW goal, growth chart, latest AI review summary |
+| **Dashboard** | Portfolio balance, progress toward 400M KRW goal, growth chart, latest AI review summary, portfolio snapshots (on-demand + auto mid-month), portfolio history chart |
 | **Track Deposits** | Record monthly 600K deposits and quarterly bonuses |
 | **Market Dashboard** | Live market data (S&P 500, NASDAQ, KOSPI, VIX, USD/KRW, Gold, Oil, etc.) |
 | **Rebalancing Alerts** | Drift detection (>5%), buy/sell share counts, T+2 settlement |
@@ -48,8 +48,11 @@ streamlit run src/irp_web_app_enhanced.py --server.port 8502
 1. Run the app
 2. **Track Deposits** → add monthly entry (date, 600000 KRW base, bonus if any)
 3. **Dashboard** → check progress and pace
-4. **Market Dashboard** → review conditions and recommendations
-5. Stop the app (Ctrl+C)
+4. **Dashboard** → portfolio snapshot auto-saved mid-month (first Korean business day ≥ 15th), or click **"Take Snapshot Now"** manually
+5. **Market Dashboard** → review conditions and recommendations
+6. Stop the app (Ctrl+C)
+
+> **Snapshot timing:** Company deposit arrives end-of-month → rebalance ETFs within ~2 weeks → auto-snapshot captures settled state mid-month.
 
 ### Quarterly AI Review
 

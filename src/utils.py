@@ -1161,6 +1161,87 @@ def run_claude_cli(
         }
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# PORTFOLIO SNAPSHOTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def is_kr_business_day(d: date) -> bool:
+    """Check if a date is a Korean business day (not weekend, not holiday)."""
+    return d.weekday() < 5 and d not in KR_HOLIDAYS
+
+
+def should_auto_snapshot(existing_snapshots: list[dict]) -> bool:
+    """Determine if an automatic mid-month snapshot should be taken today.
+
+    Triggers on the first Korean business day on or after the 15th,
+    if no snapshot exists for the current month yet.
+    """
+    today = datetime.now(KR_TZ).date()
+
+    # Must be on or after the 15th
+    if today.day < 15:
+        return False
+
+    # Skip weekends and Korean holidays
+    if not is_kr_business_day(today):
+        return False
+
+    # Check if a snapshot already exists for this year-month
+    year_month = today.strftime("%Y-%m")
+    for snap in existing_snapshots:
+        snap_date = snap.get("date", "")[:7]  # "YYYY-MM"
+        if snap_date == year_month:
+            return False
+
+    return True
+
+
+def create_portfolio_snapshot(
+    shares: dict,
+    prices: dict,
+    allocation_targets: dict,
+    trigger: str = "manual",
+    note: str = "",
+) -> dict:
+    """Create a point-in-time portfolio snapshot.
+
+    Args:
+        shares: Asset name → share count (Cash is KRW amount).
+        prices: Asset name → {'price': int, ...} from fetch_etf_prices().
+        allocation_targets: Current target allocation percentages.
+        trigger: "auto" or "manual".
+        note: Optional user note (manual snapshots only).
+
+    Returns:
+        Snapshot dict ready to append to portfolio_snapshots list.
+    """
+    values = {}
+    for asset, count in shares.items():
+        if asset == "Cash":
+            values[asset] = count
+        else:
+            price = prices.get(asset, {}).get("price", 0)
+            values[asset] = count * price
+
+    total_value = sum(values.values())
+
+    allocation_pct = {}
+    if total_value > 0:
+        allocation_pct = {k: round(v / total_value, 4) for k, v in values.items()}
+
+    return {
+        "date": datetime.now(KR_TZ).isoformat(),
+        "trigger": trigger,
+        "shares": dict(shares),
+        "prices": {k: prices.get(k, {}).get("price", 0) for k in shares if k != "Cash"},
+        "values": values,
+        "total_value": total_value,
+        "allocation_pct": allocation_pct,
+        "allocation_targets": dict(allocation_targets),
+        "note": note,
+    }
+
+
 def save_review_md(response_text: str, review_mode: str = "standard") -> Path:
     """Save an AI review response to data/ with a timestamped filename.
 

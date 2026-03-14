@@ -26,6 +26,7 @@ from utils import (
     generate_persona_export, parse_persona_review_md,
     detect_review_format, persona_review_to_standard, normalize_asset_name,
     is_claude_cli_available, run_claude_cli, save_review_md,
+    should_auto_snapshot, create_portfolio_snapshot,
 )
 from market_data import fetch_market_data, get_usd_krw, MARKET_INDICES
 
@@ -466,6 +467,8 @@ def load_data():
                     'last_rebalance_date': None,
                     'alert_threshold_pct': 5.0
                 }
+            if 'portfolio_snapshots' not in data:
+                data['portfolio_snapshots'] = []
             return data
     else:
         return {
@@ -484,6 +487,7 @@ def load_data():
                 'last_rebalance_date': None,
                 'alert_threshold_pct': 5.0
             },
+            'portfolio_snapshots': [],
         }
 
 def get_default_holdings():
@@ -623,6 +627,43 @@ def get_latest_ai_review() -> dict | None:
     data = load_data()
     reviews = data.get('ai_reviews', [])
     return reviews[-1] if reviews else None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PORTFOLIO SNAPSHOTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def save_portfolio_snapshot(snapshot: dict):
+    """Append a portfolio snapshot to the data file."""
+    data = load_data()
+    if 'portfolio_snapshots' not in data:
+        data['portfolio_snapshots'] = []
+    data['portfolio_snapshots'].append(snapshot)
+    save_data(data)
+
+
+def get_portfolio_snapshots() -> list[dict]:
+    """Return all portfolio snapshots."""
+    data = load_data()
+    return data.get('portfolio_snapshots', [])
+
+
+def check_and_run_auto_snapshot():
+    """Check if an automatic mid-month snapshot should be taken, and take it."""
+    data = load_data()
+    snapshots = data.get('portfolio_snapshots', [])
+
+    if not should_auto_snapshot(snapshots):
+        return
+
+    # Fetch current shares and prices
+    shares = data.get('shares', get_default_holdings())
+    prices = fetch_etf_prices()
+    targets = dict(ALLOCATION_TARGET)
+
+    snapshot = create_portfolio_snapshot(shares, prices, targets, trigger="auto")
+    save_portfolio_snapshot(snapshot)
+    st.toast("📸 Monthly portfolio snapshot saved automatically.", icon="✅")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2959,6 +3000,122 @@ def page_original_dashboard():
                     st.markdown(discussion_text[:500] + ('...' if len(discussion_text) > 500 else ''))
                     st.markdown('---')
 
+    # ── Portfolio Snapshots ───────────────────────────────────────────────────
+    st.divider()
+    st.subheader("📸 Portfolio Snapshots")
+
+    snapshots = get_portfolio_snapshots()
+
+    # On-demand snapshot button
+    snap_col1, snap_col2 = st.columns([3, 1])
+    with snap_col1:
+        snap_note = st.text_input(
+            "Note (optional)",
+            placeholder="e.g., Post-rebalancing, Pre-AI review",
+            key="snapshot_note",
+        )
+    with snap_col2:
+        st.write("")  # spacing
+        if st.button("📸 Take Snapshot Now", type="primary", key="take_snapshot"):
+            snap_shares = data.get('shares', get_default_holdings())
+            snap_prices = fetch_etf_prices()
+            snap_targets = dict(ALLOCATION_TARGET)
+            snapshot = create_portfolio_snapshot(
+                snap_shares, snap_prices, snap_targets,
+                trigger="manual", note=snap_note,
+            )
+            save_portfolio_snapshot(snapshot)
+            st.success(
+                f"Snapshot saved — Total: ₩{snapshot['total_value']:,.0f} "
+                f"({datetime.now().strftime('%Y-%m-%d %H:%M')})"
+            )
+            st.rerun()
+
+    # Portfolio History chart
+    if snapshots:
+        _render_portfolio_history_chart(snapshots)
+
+        # Snapshot history table
+        with st.expander(f"📋 Snapshot History ({len(snapshots)} records)", expanded=False):
+            snap_rows = []
+            for s in reversed(snapshots):
+                snap_rows.append({
+                    'Date': s['date'][:16].replace('T', ' '),
+                    'Total Value': f"₩{s['total_value']:,.0f}",
+                    'Trigger': '🔄 Auto' if s['trigger'] == 'auto' else '👤 Manual',
+                    'Note': s.get('note', ''),
+                })
+            st.dataframe(pd.DataFrame(snap_rows), use_container_width=True, hide_index=True)
+    else:
+        st.info(
+            "No snapshots yet. Click **Take Snapshot Now** to capture your first one. "
+            "Auto-snapshots run on the first Korean business day on or after the 15th of each month."
+        )
+
+
+def _render_portfolio_history_chart(snapshots: list[dict]):
+    """Render a Portfolio History line chart with goal line."""
+    dates = [s['date'][:10] for s in snapshots]
+    totals = [s['total_value'] for s in snapshots]
+    triggers = [s.get('trigger', 'manual') for s in snapshots]
+    hover_texts = []
+    for s in snapshots:
+        parts = [f"Total: ₩{s['total_value']:,.0f}"]
+        for asset, val in s.get('values', {}).items():
+            if val > 0:
+                parts.append(f"  {asset}: ₩{val:,.0f}")
+        if s.get('note'):
+            parts.append(f"Note: {s['note']}")
+        hover_texts.append("<br>".join(parts))
+
+    fig = go.Figure()
+
+    # Main line
+    fig.add_trace(go.Scatter(
+        x=dates, y=totals,
+        mode='lines+markers',
+        name='Portfolio Value',
+        line=dict(color='#2196F3', width=3),
+        hovertext=hover_texts,
+        hoverinfo='text',
+    ))
+
+    # Color markers by trigger type
+    auto_dates = [d for d, t in zip(dates, triggers) if t == 'auto']
+    auto_vals = [v for v, t in zip(totals, triggers) if t == 'auto']
+    manual_dates = [d for d, t in zip(dates, triggers) if t != 'auto']
+    manual_vals = [v for v, t in zip(totals, triggers) if t != 'auto']
+
+    if auto_dates:
+        fig.add_trace(go.Scatter(
+            x=auto_dates, y=auto_vals,
+            mode='markers', name='Auto (mid-month)',
+            marker=dict(color='#4CAF50', size=10, symbol='circle'),
+            hoverinfo='skip',
+        ))
+    if manual_dates:
+        fig.add_trace(go.Scatter(
+            x=manual_dates, y=manual_vals,
+            mode='markers', name='Manual (on-demand)',
+            marker=dict(color='#FF9800', size=10, symbol='diamond'),
+            hoverinfo='skip',
+        ))
+
+    # Goal & floor lines
+    fig.add_hline(y=400_000_000, line_dash='dash', line_color='green',
+                  annotation_text='Goal: 400M')
+    fig.add_hline(y=300_000_000, line_dash='dot', line_color='orange',
+                  annotation_text='Floor: 300M')
+
+    fig.update_layout(
+        title='Portfolio Value Over Time',
+        xaxis_title='Date', yaxis_title='Portfolio Value (KRW)',
+        height=420,
+        legend=dict(orientation='h', yanchor='bottom', y=1.02),
+        yaxis=dict(tickformat=',.0f'),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PAGE 7: TRACK DEPOSITS
@@ -4170,7 +4327,10 @@ def main():
     
     # Load custom allocation targets (if any)
     load_allocation_target()
-    
+
+    # Auto-snapshot: mid-month on first Korean business day >= 15th
+    check_and_run_auto_snapshot()
+
     # Sidebar navigation
     st.sidebar.title("IRP Tracker Pro")
     

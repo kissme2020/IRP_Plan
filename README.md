@@ -19,6 +19,7 @@ A professional web application for tracking your Korean IRP (Individual Retireme
 - **Import AI Review**: Auto-detect and parse Standard or Three-Persona .md files — persona tabs, discussion context, one-click apply
 - **Data-Driven Allocation**: Allocation targets stored in JSON, editable via AI review or manual reset
 - **Allocation History**: Track all allocation target changes over time with source and notes
+- **Portfolio Snapshots**: Automatic mid-month snapshots (first Korean business day ≥ 15th) + on-demand capture. Portfolio History chart on Dashboard with goal/floor lines.
 - **Professional Dashboard**: Beautiful visualizations with Plotly
 
 ## Your Numbers
