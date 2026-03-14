@@ -1119,6 +1119,7 @@ def run_claude_cli(
             input=prompt,
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=timeout_seconds,
         )
         elapsed = (datetime.now() - start).total_seconds()
