@@ -1,10 +1,8 @@
 # IRP Tracker Pro — Development Log
 
 ## Overview
-Tracks implementation progress for the 5 Original Pages that were placeholders.  
-Each page follows: **Plan → Code → Test → User Verify → Update MDs → Commit**
-
-**Commit Strategy**: One commit per page (5 total commits)
+Tracks implementation progress for the IRP Tracker Pro app.
+Each feature follows: **Plan → Code → Test → User Verify → Update MDs → Commit**
 
 ---
 
@@ -215,3 +213,13 @@ Each page follows: **Plan → Code → Test → User Verify → Update MDs → C
   - **`_show_persona_tabs()`**: Displays discussion in expandable "💬 Discussion with other personas" section
   - Updated `data/sample_persona_review.md` with Discussion sections for all 3 personas + synthesis
   - All parser tests pass including discussion extraction (4 discussion entries)
+
+### Claude CLI Integration for One-Click AI Review
+- **Date:** 2026-03-14
+- **Files Changed:** `src/utils.py`, `src/irp_web_app_enhanced.py`, `test_claude_cli.py`, `README.md`, `QUICK_REFERENCE.md`, `DEVELOPMENT_LOG.md`
+- **Changes:**
+  - **`utils.py`**: Added `is_claude_cli_available()`, `run_claude_cli()`, `save_review_md()` — subprocess wrapper for `claude -p` with model selection, timeout, budget cap, and error handling
+  - **`irp_web_app_enhanced.py`**: Updated `page_export_snapshot()` — added "Run AI Review Now" button with model/timeout/budget controls; inline result display via `_show_cli_review_results()` with Apply/Reset; existing manual workflow moved to collapsible fallback section
+  - **`test_claude_cli.py`**: 32 unit tests covering CLI detection, success/failure/timeout paths, save_review_md, end-to-end parse, budget flag passthrough
+  - **Quarterly workflow reduced from 8 manual steps to 3** (generate → review → apply)
+  - Documentation updated: README.md (feature description, quarterly workflow Option A/B, version history), QUICK_REFERENCE.md (page table, workflow steps)

@@ -4,7 +4,10 @@ Utility functions for IRP Retirement Tracker
 
 import math
 import re
+import subprocess
+import shutil
 from datetime import datetime, timedelta, date
+from pathlib import Path
 from typing import Union
 from zoneinfo import ZoneInfo
 import holidays
@@ -492,7 +495,7 @@ _ASSET_ALIASES = {
     "kodex 미국30년국채액티브(h)": "Treasury Bonds",
     "gold": "Gold",
     "gold / gold etf": "Gold",
-    "kodex 골드선물(h)": "Gold",
+    "ace krx금현물": "Gold",
     "japan topix": "Japan TOPIX",
     "japan robotics / ai": "Japan TOPIX",
     "kodex 일본topix100": "Japan TOPIX",
@@ -1028,3 +1031,118 @@ def persona_review_to_standard(persona_result: dict) -> dict:
         "persona_discussions": persona_discussions,
         "raw": persona_result.get("raw", ""),
     }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CLAUDE CLI INTEGRATION
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def is_claude_cli_available() -> bool:
+    """Check whether the 'claude' CLI is installed and on PATH."""
+    return shutil.which("claude") is not None
+
+
+def run_claude_cli(
+    prompt: str,
+    *,
+    model: str = "sonnet",
+    timeout_seconds: int = 180,
+    max_budget_usd: float | None = None,
+) -> dict:
+    """Run a prompt through `claude -p` and return the result.
+
+    Args:
+        prompt: Full text to send (the portfolio snapshot).
+        model: Model alias — "sonnet" (fast/cheap) or "opus" (deep).
+        timeout_seconds: Max wall-clock seconds before aborting.
+        max_budget_usd: Optional spend cap per invocation.
+
+    Returns:
+        {
+            "success": bool,
+            "response": str,        # AI response text (empty on failure)
+            "error": str,           # error message (empty on success)
+            "model": str,
+            "elapsed_seconds": float,
+        }
+    """
+    if not is_claude_cli_available():
+        return {
+            "success": False,
+            "response": "",
+            "error": "Claude CLI not found. Install it or check your PATH.",
+            "model": model,
+            "elapsed_seconds": 0,
+        }
+
+    cmd = [
+        "claude",
+        "-p",
+        "--model", model,
+        "--output-format", "text",
+    ]
+    if max_budget_usd is not None:
+        cmd += ["--max-budget-usd", str(max_budget_usd)]
+
+    start = datetime.now()
+    try:
+        result = subprocess.run(
+            cmd,
+            input=prompt,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+        elapsed = (datetime.now() - start).total_seconds()
+
+        if result.returncode != 0:
+            return {
+                "success": False,
+                "response": "",
+                "error": f"CLI exited with code {result.returncode}: {result.stderr.strip()}",
+                "model": model,
+                "elapsed_seconds": elapsed,
+            }
+
+        return {
+            "success": True,
+            "response": result.stdout,
+            "error": "",
+            "model": model,
+            "elapsed_seconds": elapsed,
+        }
+
+    except subprocess.TimeoutExpired:
+        elapsed = (datetime.now() - start).total_seconds()
+        return {
+            "success": False,
+            "response": "",
+            "error": f"Claude CLI timed out after {timeout_seconds}s. Try a shorter prompt or increase the timeout.",
+            "model": model,
+            "elapsed_seconds": elapsed,
+        }
+    except Exception as e:
+        elapsed = (datetime.now() - start).total_seconds()
+        return {
+            "success": False,
+            "response": "",
+            "error": str(e),
+            "model": model,
+            "elapsed_seconds": elapsed,
+        }
+
+
+def save_review_md(response_text: str, review_mode: str = "standard") -> Path:
+    """Save an AI review response to data/ with a timestamped filename.
+
+    Returns the Path to the saved file.
+    """
+    data_dir = Path(__file__).parent.parent / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    mode_tag = "Persona" if review_mode == "persona" else "Standard"
+    filename = f"IRP_AI_Review_{mode_tag}_{timestamp}.md"
+    filepath = data_dir / filename
+    filepath.write_text(response_text, encoding="utf-8")
+    return filepath

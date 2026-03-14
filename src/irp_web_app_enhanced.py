@@ -25,6 +25,7 @@ from utils import (
     get_settlement_date, KR_TZ,
     generate_persona_export, parse_persona_review_md,
     detect_review_format, persona_review_to_standard, normalize_asset_name,
+    is_claude_cli_available, run_claude_cli, save_review_md,
 )
 from market_data import fetch_market_data, get_usd_krw, MARKET_INDICES
 
@@ -80,7 +81,7 @@ def load_etf_config():
         'Dividend Stocks': {'code': '489250', 'name': 'KODEX US Dividend (Dow Jones)', 'name_kr': 'KODEX 미국배당다우존스', 'type': 'Equity', 'description': 'US dividend aristocrats'},
         'Consumer Staples': {'code': '453630', 'name': 'KODEX S&P 500 Consumer Staples', 'name_kr': 'KODEX 미국S&P500필수소비재', 'type': 'Equity', 'description': 'Defensive US consumer stocks'},
         'Treasury Bonds': {'code': '484790', 'name': 'KODEX US 30Y Treasury Active (H)', 'name_kr': 'KODEX 미국30년국채액티브(H)', 'type': 'Bond', 'description': 'Long-term US Treasury bonds, monthly dividend, hedged'},
-        'Gold': {'code': '132030', 'name': 'KODEX Gold Futures H', 'name_kr': 'KODEX 골드선물(H)', 'type': 'Commodity', 'description': 'Gold commodity ETF'},
+        'Gold': {'code': '411060', 'name': 'ACE KRX Gold Spot', 'name_kr': 'ACE KRX금현물', 'type': 'Commodity', 'description': 'Gold commodity ETF'},
         'Japan TOPIX': {'code': '101280', 'name': 'KODEX Japan TOPIX100', 'name_kr': 'KODEX 일본TOPIX100', 'type': 'Equity', 'description': 'Top 100 Japanese companies'},
         'Cash': {'code': None, 'name': 'Cash', 'name_kr': '현금', 'type': 'Cash', 'description': 'Cash holdings'},
     }
@@ -2161,39 +2162,244 @@ def page_export_snapshot():
     else:
         snapshot = generate_portfolio_snapshot(**gen_kwargs)
 
-    # Preview
-    st.subheader("📄 Snapshot Preview")
-    with st.expander("Click to preview rendered snapshot", expanded=True):
+    # ── Claude CLI: one-click AI review ──
+    cli_available = is_claude_cli_available()
+
+    st.subheader("🚀 Run AI Review via Claude CLI")
+
+    if cli_available:
+        st.success("Claude CLI detected — you can run the review directly from here.")
+
+        cli_col1, cli_col2, cli_col3 = st.columns([2, 1, 1])
+        with cli_col1:
+            cli_model = st.selectbox(
+                "Model",
+                ["sonnet", "opus"],
+                index=0,
+                help="Sonnet: fast & cheap (~30s). Opus: deeper analysis (~90s).",
+                key="cli_model",
+            )
+        with cli_col2:
+            cli_timeout = st.number_input(
+                "Timeout (seconds)",
+                min_value=60,
+                max_value=600,
+                value=180,
+                step=30,
+                key="cli_timeout",
+            )
+        with cli_col3:
+            cli_budget = st.number_input(
+                "Max budget (USD)",
+                min_value=0.0,
+                max_value=5.0,
+                value=1.0,
+                step=0.25,
+                format="%.2f",
+                key="cli_budget",
+            )
+
+        if st.button("Run AI Review Now", type="primary", use_container_width=True, key="run_cli_review"):
+            review_mode_tag = "persona" if use_persona else "standard"
+            with st.spinner(f"Running Claude CLI ({cli_model})... this may take 30-120 seconds"):
+                cli_result = run_claude_cli(
+                    snapshot,
+                    model=cli_model,
+                    timeout_seconds=int(cli_timeout),
+                    max_budget_usd=cli_budget if cli_budget > 0 else None,
+                )
+
+            if cli_result["success"]:
+                response_text = cli_result["response"]
+                saved_path = save_review_md(response_text, review_mode=review_mode_tag)
+
+                st.success(
+                    f"Review completed in {cli_result['elapsed_seconds']:.0f}s "
+                    f"(model: {cli_result['model']}). Saved to `{saved_path.name}`."
+                )
+
+                # Parse and display inline
+                fmt = detect_review_format(response_text)
+                if fmt == "persona":
+                    persona_result = parse_persona_review_md(response_text)
+                    review = persona_review_to_standard(persona_result)
+                    _show_persona_tabs(persona_result)
+                else:
+                    review = parse_ai_review_md(response_text)
+                    persona_result = None
+
+                # Show parsed allocation
+                _show_cli_review_results(review, persona_result, saved_path.name)
+            else:
+                st.error(f"Claude CLI failed: {cli_result['error']}")
+                st.info("You can still use the manual copy-paste workflow below.")
+    else:
+        st.warning(
+            "Claude CLI not found. Install it (`npm install -g @anthropic-ai/claude-code`) "
+            "or use the manual copy-paste workflow below."
+        )
+
+    st.divider()
+
+    # ── Manual workflow (fallback) ──
+    with st.expander("📑 Manual Copy-Paste Workflow", expanded=not cli_available):
+        # Preview
+        st.subheader("📄 Snapshot Preview")
         st.markdown(snapshot)
 
-    # Copyable text
-    st.subheader("📑 Copy This Text")
-    st.text_area(
-        "Select all and copy (Ctrl+A, Ctrl+C):",
-        value=snapshot,
-        height=500,
-        key=f"snapshot_text_{'persona' if use_persona else 'standard'}",
-    )
+        st.subheader("📑 Copy This Text")
+        st.text_area(
+            "Select all and copy (Ctrl+A, Ctrl+C):",
+            value=snapshot,
+            height=500,
+            key=f"snapshot_text_{'persona' if use_persona else 'standard'}",
+        )
 
-    if use_persona:
-        st.info("""
-        **How to use (Three-Persona):**
-        1. Copy the text above
-        2. Open [Claude Web](https://claude.ai) (or another AI)
-        3. Paste the snapshot — the AI will respond as three personas + a synthesis
-        4. Save the full AI response as a `.md` file
-        5. Import it using the **Import AI Review** page (persona format auto-detected)
-        """)
-    else:
-        st.info("""
-        **How to use:**
-        1. Copy the text above
-        2. Open [Claude Web](https://claude.ai) (or another AI)
-        3. Paste the snapshot and ask for a quarterly review
-        4. Review the AI's recommendations before making changes
-        5. Save the AI response as a .md file
-        6. Import it using the **Import AI Review** page
-        """)
+        if use_persona:
+            st.info("""
+            **How to use (Three-Persona):**
+            1. Copy the text above
+            2. Open [Claude Web](https://claude.ai) (or another AI)
+            3. Paste the snapshot — the AI will respond as three personas + a synthesis
+            4. Save the full AI response as a `.md` file
+            5. Import it using the **Import AI Review** page (persona format auto-detected)
+            """)
+        else:
+            st.info("""
+            **How to use:**
+            1. Copy the text above
+            2. Open [Claude Web](https://claude.ai) (or another AI)
+            3. Paste the snapshot and ask for a quarterly review
+            4. Review the AI's recommendations before making changes
+            5. Save the AI response as a .md file
+            6. Import it using the **Import AI Review** page
+            """)
+
+
+def _show_cli_review_results(review: dict, persona_result: dict | None, filename: str):
+    """Display parsed CLI review results with Apply/Reset buttons inline on the Export page."""
+    st.divider()
+    st.subheader("📊 Recommended Allocation Changes" + (" (from SYNTHESIS)" if persona_result else ""))
+
+    if not review.get("allocation"):
+        st.warning("Could not parse allocation from the response. Check the raw output below.")
+        with st.expander("Raw AI response"):
+            st.code(review.get("raw", "")[:5000])
+        return
+
+    valid_assets = {}
+    comparison_rows = []
+    for asset_name, info in review["allocation"].items():
+        matched_key = normalize_asset_name(asset_name)
+        if not matched_key or matched_key not in ALLOCATION_TARGET:
+            continue
+
+        current_target = ALLOCATION_TARGET[matched_key] * 100
+        recommended = info["recommended"]
+        change = recommended - current_target
+        valid_assets[matched_key] = recommended
+
+        comparison_rows.append({
+            "Asset": matched_key,
+            "Current Target %": f"{current_target:.0f}%",
+            "Recommended %": f"{recommended:.0f}%",
+            "Change": f"{change:+.0f}%",
+            "Action": info.get("action", ""),
+            "Reason": info.get("reason", ""),
+        })
+
+    if comparison_rows:
+        df = pd.DataFrame(comparison_rows)
+        st.dataframe(df, use_container_width=True, hide_index=True)
+
+        total_pct = sum(valid_assets.values())
+        if abs(total_pct - 100) > 1:
+            st.warning(f"Recommended allocations sum to {total_pct:.0f}% (should be 100%). Adjust before applying.")
+        else:
+            st.success(f"Allocations sum to {total_pct:.0f}%")
+
+    # CAGR
+    if review.get("cagr", {}).get("recommended"):
+        st.subheader("📈 CAGR Assessment")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.metric("Current CAGR", f"{review['cagr']['current']}%")
+        with c2:
+            delta = review['cagr']['recommended'] - (review['cagr']['current'] or 0)
+            st.metric("Recommended CAGR", f"{review['cagr']['recommended']}%", delta=f"{delta:+.1f}%")
+        if review['cagr'].get('reason'):
+            st.caption(f"Reason: {review['cagr']['reason']}")
+
+    # Recommendations
+    if review.get("recommendations"):
+        st.subheader("🎯 Key Recommendations")
+        for rec in review["recommendations"]:
+            rec_upper = rec.upper()
+            if rec_upper.startswith("[HIGH]") or rec_upper.startswith("HIGH"):
+                st.error(f"🔴 {rec}")
+            elif rec_upper.startswith("[MEDIUM]") or rec_upper.startswith("MEDIUM"):
+                st.warning(f"🟡 {rec}")
+            else:
+                st.info(f"🔵 {rec}")
+
+    # Market Outlook
+    if review.get("market_outlook"):
+        st.subheader("🌍 Market Outlook")
+        st.markdown(review["market_outlook"])
+
+    # Apply / Reset
+    if valid_assets:
+        st.divider()
+        st.subheader("✅ Apply Changes")
+
+        with st.expander("🔧 Fine-tune before applying (optional)"):
+            adjusted = {}
+            cols = st.columns(2)
+            for idx, (asset, pct) in enumerate(valid_assets.items()):
+                with cols[idx % 2]:
+                    adjusted[asset] = st.number_input(
+                        f"{asset} %",
+                        min_value=0.0,
+                        max_value=100.0,
+                        value=float(pct),
+                        step=1.0,
+                        key=f"cli_adjust_{asset}",
+                    )
+            adj_total = sum(adjusted.values())
+            if abs(adj_total - 100) > 1:
+                st.warning(f"Total: {adj_total:.0f}% — must be ~100%")
+            else:
+                st.success(f"Total: {adj_total:.0f}%")
+                valid_assets = adjusted
+
+        col1, col2 = st.columns(2)
+        with col1:
+            source_label = "persona_cli_review" if persona_result else "cli_review"
+            if st.button("🚀 Apply Recommended Allocation", type="primary", use_container_width=True, key="cli_apply"):
+                new_target = {asset: pct / 100.0 for asset, pct in valid_assets.items()}
+                notes = f"From CLI review: {filename}"
+                if persona_result:
+                    personas_found = list(persona_result.get('personas', {}).keys())
+                    notes += f" | Personas: {', '.join(personas_found)}"
+                if review.get("recommendations"):
+                    notes += " | " + "; ".join(review["recommendations"][:3])
+                save_allocation_target(new_target, source=source_label, notes=notes)
+                save_ai_review(review, filename)
+                st.success("Allocation targets updated! Go to **Rebalancing Alerts** to see new trade recommendations.")
+                st.balloons()
+        with col2:
+            if st.button("🔄 Reset to Default (Option B)", use_container_width=True, key="cli_reset"):
+                save_allocation_target(
+                    dict(ALLOCATION_TARGET_DEFAULT),
+                    source="reset",
+                    notes="Reset to Option B defaults",
+                )
+                st.success("Reset to default Option B allocation.")
+                st.rerun()
+
+    # Raw response
+    with st.expander("📄 Full AI Response"):
+        st.markdown(review.get("raw", ""))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

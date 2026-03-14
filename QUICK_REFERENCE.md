@@ -35,7 +35,7 @@ streamlit run src/irp_web_app_enhanced.py --server.port 8502
 | **Plan Revision** | Compare Conservative / Moderate / Aggressive strategies |
 | **Projections** | Year-by-year forecasts (CAGR pre-filled from AI review), scenario analysis to 2030 |
 | **Reports** | Contributions summary, allocation pie chart, alerts, AI review history |
-| **Export for AI Review** | Generate portfolio snapshot markdown (Standard or Three-Persona) for Claude/ChatGPT/Gemini |
+| **Export for AI Review** | One-click Claude CLI review or manual snapshot export (Standard or Three-Persona) |
 | **Import AI Review** | Upload AI response .md (auto-detects Standard/Persona), compare allocations, apply changes |
 | **RSU Tracking** | Keysight RSU vesting schedule (2027-2030) |
 
@@ -53,7 +53,13 @@ streamlit run src/irp_web_app_enhanced.py --server.port 8502
 
 ### Quarterly AI Review
 
-1. **Export for AI Review** → choose **Standard** or **Three-Persona** format → copy the generated snapshot
+**Option A — Claude CLI (recommended, 3 steps):**
+1. **Export for AI Review** → choose Standard or Three-Persona → click **"Run AI Review Now"**
+2. Review parsed results → click **Apply** to update targets
+3. **Rebalancing Alerts** → check for new trade recommendations → execute trades
+
+**Option B — Manual copy-paste (fallback):**
+1. **Export for AI Review** → expand "Manual Copy-Paste Workflow" → copy the generated snapshot
 2. Paste into [Claude.ai](https://claude.ai/new) (or ChatGPT / Gemini)
 3. Save the AI response as a `.md` file
 4. **Import AI Review** → upload the `.md` file (format auto-detected)
@@ -63,6 +69,8 @@ streamlit run src/irp_web_app_enhanced.py --server.port 8502
 8. Check **Dashboard** for AI review summary, **Projections** for updated CAGR
 9. **Rebalancing Alerts** → check for new trade recommendations
 10. Execute trades if needed
+
+> **Prerequisite for Option A:** Claude CLI must be installed and authenticated (`claude --version` to check).
 
 ### Rebalancing Execution (When Alerts Fire)
 
@@ -86,7 +94,7 @@ streamlit run src/irp_web_app_enhanced.py --server.port 8502
 | Dividend Stocks | KODEX 미국배당다우존스 | 489250 | Equity | 10% |
 | Consumer Staples | KODEX 미국S&P500필수소비재 | 453630 | Equity | 8% |
 | Treasury Bonds | KODEX 미국30년국채액티브(H) | 484790 | Bond | 11% |
-| Gold | KODEX 골드선물(H) | 132030 | Commodity | 7% |
+| Gold | ACE KRX금현물 | 411060 | Commodity | 7% |
 | Japan TOPIX | KODEX 일본TOPIX100 | 101280 | Equity | 2% |
 | Cash | — | — | Cash | 28% |
 
@@ -191,4 +199,4 @@ pip install -r requirements.txt
 
 ---
 
-*Last Updated: March 13, 2026*
+*Last Updated: March 14, 2026*

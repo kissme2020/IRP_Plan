@@ -35,9 +35,9 @@
         "description": "Long-term US Treasury bonds, monthly dividend, hedged"
     },
     "Gold": {
-        "code": "132030",
-        "name": "KODEX Gold Futures H",
-        "name_kr": "KODEX 골드선물(H)",
+        "code": "411060",
+        "name": "ACE KRX Gold Spot",
+        "name_kr": "ACE KRX금현물",
         "type": "Commodity",
         "description": "Gold commodity ETF"
     },

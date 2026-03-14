@@ -197,10 +197,12 @@ To stop the app, press `Ctrl+C` in the terminal.
 - **Two export modes**: Standard (single reviewer) or Three-Persona (Cathie Wood, Peter Lynch, Ray Dalio)
 - Three-Persona mode includes mandates per persona and `### Discussion` subsection instructions for inter-persona debate
 - Contains **Response Format Instructions** that tell any AI to reply in our exact parseable format
-- Copy text → paste into Claude.ai / ChatGPT / Gemini → save response as .md
+- **Claude CLI integration**: one-click "Run AI Review Now" button — generates snapshot, calls `claude -p`, parses response, and displays results with Apply button (no copy-paste needed)
+- Model selection (Sonnet for speed, Opus for depth), configurable timeout and budget cap
+- Fallback: manual copy text → paste into Claude.ai / ChatGPT / Gemini → save response as .md
 
 ### Import AI Review
-- Upload the AI's .md response file
+- Upload the AI's .md response file (for manual workflow)
 - **Auto-detects** Standard or Three-Persona format
 - Parser extracts: allocation table, CAGR assessment, key recommendations (HIGH/MEDIUM/LOW), market outlook, persona discussions
 - Three-Persona imports show **per-persona tabs** with individual allocations, CAGR, recommendations, and discussion context
@@ -287,7 +289,7 @@ ETF configuration is stored in `data/etf_config.json` for easy maintenance. The 
 | Dividend Stocks | KODEX 미국배당다우존스 | 489250 | Defensive |
 | Consumer Staples | KODEX 미국S&P500필수소비재 | 453630 | Defensive |
 | Treasury Bonds | KODEX 미국30년국채액티브(H) | 484790 | Bonds |
-| Gold | KODEX 골드선물(H) | 132030 | Safe Haven |
+| Gold | ACE KRX금현물 | 411060 | Safe Haven |
 | Japan TOPIX | KODEX 일본TOPIX100 | 101280 | International |
 
 To add or modify ETFs, edit `data/etf_config.json`:
@@ -387,7 +389,13 @@ Configure automatic rebalancing alerts:
 
 ### Quarterly (Every 3 months):
 
-1. Go to **Export for AI Review** → copy the snapshot
+**Option A — Claude CLI (recommended, 3 steps):**
+1. Go to **Export for AI Review** → choose Standard or Three-Persona → click **"Run AI Review Now"**
+2. Review the parsed results → click **Apply** to update targets
+3. Check **Rebalancing Alerts** for new trade recommendations → execute trades → backup data
+
+**Option B — Manual copy-paste (fallback, 9 steps):**
+1. Go to **Export for AI Review** → expand "Manual Copy-Paste Workflow" → copy the snapshot
 2. Paste into [Claude.ai](https://claude.ai/new) (or ChatGPT/Gemini)
 3. Save the AI response as a `.md` file
 4. Go to **Import AI Review** → upload the file
@@ -540,8 +548,9 @@ For help or questions:
 
 - **v1.0** (March 2026): Initial setup and deployment
 - **v1.1** (March 2026): Added QUICK_REFERENCE.md
+- **v1.2** (March 2026): Claude CLI integration for one-click AI review
 - **Status**: Active monitoring (March 2026 - December 2030)
-- **Last Update**: March 12, 2026
+- **Last Update**: March 14, 2026
 
 ---
 
