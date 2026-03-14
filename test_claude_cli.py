@@ -34,10 +34,10 @@ def check(name, condition, detail=""):
 # ═══════════════════════════════════════════════════════════════════════════════
 print("\n=== TEST 1: is_claude_cli_available ===")
 
-with patch("utils.shutil.which", return_value="/usr/bin/claude"):
+with patch("utils._find_claude_exe", return_value="/usr/bin/claude"):
     check("CLI found", is_claude_cli_available() is True)
 
-with patch("utils.shutil.which", return_value=None):
+with patch("utils._find_claude_exe", return_value=None):
     check("CLI not found", is_claude_cli_available() is False)
 
 
@@ -46,7 +46,7 @@ with patch("utils.shutil.which", return_value=None):
 # ═══════════════════════════════════════════════════════════════════════════════
 print("\n=== TEST 2: run_claude_cli — CLI not found ===")
 
-with patch("utils.is_claude_cli_available", return_value=False):
+with patch("utils._find_claude_exe", return_value=None):
     result = run_claude_cli("test prompt")
     check("Returns failure", result["success"] is False)
     check("Error message", "not found" in result["error"].lower(), result["error"])

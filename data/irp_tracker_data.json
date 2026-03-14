@@ -125,7 +125,7 @@
     "Japan TOPIX": 210,
     "Cash": 49196000
   },
-  "holdings_updated": "2026-03-12T18:05:59.370088",
+  "holdings_updated": "2026-03-14T09:42:36.743169",
   "rebalance_history": [],
   "transactions": [
     {
@@ -380,6 +380,17 @@
       "total_cost": 14730120,
       "notes": "",
       "created_at": "2026-03-12T16:58:37.397808"
+    },
+    {
+      "id": "7e911d37",
+      "asset": "Treasury Bonds",
+      "type": "buy",
+      "date": "2026-03-13",
+      "shares": 3309,
+      "price_per_share": 8760,
+      "total_cost": 28986840,
+      "notes": "",
+      "created_at": "2026-03-13T16:49:01.538547"
     }
   ],
   "rebalancing_settings": {
@@ -399,14 +410,14 @@
     "Cash": 35140000
   },
   "shares": {
-    "AI Core Power": 1663,
-    "AI Tech TOP10": 1420,
+    "AI Core Power": 1633,
+    "AI Tech TOP10": 3566,
     "Dividend Stocks": 1186,
     "Consumer Staples": 749,
-    "Treasury Bonds": 0,
+    "Treasury Bonds": 3309,
     "Gold": 574,
     "Japan TOPIX": 104,
-    "Cash": 53921431
+    "Cash": 23206342
   },
   "allocation_history": [
     {
@@ -583,17 +594,42 @@
         "Cash": 0.15
       },
       "notes": "From AI review: irp_ai_review_2026_03_13_Opus_4_6.md | Personas: Cathie Wood, Peter Lynch, Ray Dalio | [HIGH] Deploy 25.8M KRW from cash into Treasury Bonds immediately \u2014 execute in 3 equal tranches (8.6M each) over 6 weeks to fill the most critical portfolio gap; [HIGH] Trim AI Tech TOP10 from 10.7% to 7% \u2014 sell approximately 510 shares and redeploy 50% to Dividend Stocks and 50% to Japan TOPIX; [MEDIUM] Scale Japan TOPIX from 1.8% to 5% \u2014 purchase approximately 180 additional shares over 60 days via bi-weekly orders"
+    },
+    {
+      "date": "2026-03-13T14:31:46.705433",
+      "source": "persona_ai_review",
+      "previous": {
+        "AI Core Power": 0.26,
+        "AI Tech TOP10": 0.07,
+        "Dividend Stocks": 0.12,
+        "Consumer Staples": 0.07,
+        "Treasury Bonds": 0.16,
+        "Gold": 0.12,
+        "Japan TOPIX": 0.05,
+        "Cash": 0.15
+      },
+      "new": {
+        "AI Core Power": 0.26,
+        "AI Tech TOP10": 0.09,
+        "Dividend Stocks": 0.12,
+        "Consumer Staples": 0.07,
+        "Treasury Bonds": 0.14,
+        "Gold": 0.1,
+        "Japan TOPIX": 0.04,
+        "Cash": 0.18
+      },
+      "notes": "From AI review: irp_ai_review_2026_03_13_Opus_4_6_First_Offical.md | Personas: Cathie Wood, Peter Lynch, Ray Dalio | [HIGH] Deploy 22.5M KRW from cash into Treasury Bonds (KODEX \ubbf8\uad6d30\ub144\uad6d\ucc44\uc561\ud2f0\ube0c) immediately \u2014 this is a zero-allocation position with a -16% drift from target and represents the largest risk in the current portfolio; [HIGH] Increase Dividend Stocks by 4.5M KRW (approximately 350 additional shares) over the next 2-3 weeks to bring allocation from 9.2% to 12%; [MEDIUM] Add 3.5M KRW to Japan TOPIX (approximately 120 shares) to increase from 1.8% to 4%, capturing governance reform upside and international diversification"
     }
   ],
   "allocation_target": {
     "AI Core Power": 0.26,
-    "AI Tech TOP10": 0.07,
+    "AI Tech TOP10": 0.09,
     "Dividend Stocks": 0.12,
     "Consumer Staples": 0.07,
-    "Treasury Bonds": 0.16,
-    "Gold": 0.12,
-    "Japan TOPIX": 0.05,
-    "Cash": 0.15
+    "Treasury Bonds": 0.14,
+    "Gold": 0.1,
+    "Japan TOPIX": 0.04,
+    "Cash": 0.18
   },
   "ai_reviews": [
     {
@@ -1074,6 +1110,80 @@
         "Peter Lynch": "Cathie is right that growth must drive this portfolio to 400M, but she underestimates the risk of concentration at peak multiples. Putting 35% in AI Core Power after a 30% run means you're buying a thematic narrative at 1.5-2.0x PEG \u2014 acceptable for a 10% position, dangerous for 35%. If hyperscaler capex guidance disappoints even modestly, this position could give back 25% quickly. Dalio's safe sleeve makes sense to me, though I would fill it with dividend growers rather than pure bonds \u2014 companies with real earnings and growing payouts provide both downside protection and inflation resilience. My main pushback to both: the most underappreciated asset here is Japan TOPIX at 13-15x earnings during a structural reform cycle. Neither is allocating enough to it.",
         "Ray Dalio": "Cathie is right that growth drives the portfolio toward 400M, and I do not dispute the AI infrastructure thesis. But she wants 35% in a single thematic ETF that has already run 30%. If that position reverses by 25%, you lose 14.1M KRW \u2014 nearly a full year of contributions and RSU income combined. My safe sleeve protects against exactly this scenario. Lynch's valuation work is sound \u2014 his PEG analysis confirms that AI Core Power is fully valued, not cheap. Where I disagree with Lynch is on cash: he wants 18% in cash, which is dead capital. My preferred structure uses Treasury Bonds as \"productive cash\" \u2014 liquid, appreciating in crises, and deployable. The key insight both miss: it is not about the return of the growth sleeve vs. the safe sleeve. It is about the rebalancing between them during drawdowns that generates the incremental 2-4% annually. That rebalancing alpha is what keeps you on the 10.2% CAGR path even through a lost year.",
         "Synthesis": "The three personas converge on several key themes while disagreeing sharply on concentration and risk tolerance.\n\n**Points of agreement across all three:**\nThe massive cash overweight (33.5% vs. 14% target) is the most urgent problem. All three personas recommend deploying capital, though they disagree on where. The Treasury Bond underweight at 0% vs. 18% target is the second-highest priority \u2014 even Wood concedes a minimal 5% allocation. Japan TOPIX is underappreciated at 1.8% and deserves scaling up. AI Tech TOP10's covered-call structure is problematic \u2014 Wood would hold, Lynch would trim aggressively, Dalio would hold at target.\n\n**Key debate: Growth concentration vs. diversification**\nWood wants 35% in AI Core Power. Lynch caps it at 24% based on PEG analysis showing full valuation at 1.5-2.0x. Dalio agrees with Lynch's 24% limit. The synthesis sides with Lynch and Dalio: 24-26% is the prudent ceiling for a single thematic ETF, especially one that has already appreciated 30%.\n\n**Key debate: Bonds vs. dividend equities as the safe sleeve**\nDalio insists on the full 18% Treasury Bond allocation for crash protection. Lynch prefers dividend growers (14%) that provide earnings-backed income. The synthesis blends both: 16% Treasuries for crash insurance plus 12% dividend equities for income and inflation protection.\n\n**Key debate: Cash buffer size**\nWood wants 5%, Lynch wants 18%, Dalio wants 14%. The synthesis targets 8% \u2014 enough for three months of opportunistic deployment during corrections, but not so much that it drags the CAGR below target.\n\n**Resolution:** The final allocation reflects Dalio's risk architecture (clear safe sleeve), Lynch's valuation discipline (no overconcentration, earnings-backed picks), and Wood's growth conviction (AI infrastructure as the portfolio's primary return engine). The rebalancing protocol from Dalio is adopted in full as the mechanism that reconciles growth ambition with crash resilience."
+      }
+    },
+    {
+      "date": "2026-03-13T14:31:46.711434",
+      "filename": "irp_ai_review_2026_03_13_Opus_4_6_First_Offical.md",
+      "allocation": {
+        "AI Core Power": {
+          "current": 0,
+          "recommended": 26.0,
+          "action": "Trim",
+          "reason": "Core growth holding; slightly trim from 28.2% to manage concentration risk while maintaining AI thesis conviction"
+        },
+        "AI Tech TOP10": {
+          "current": 0,
+          "recommended": 9.0,
+          "action": "Trim",
+          "reason": "Hold for loss recovery; covered-call income provides defensive carry; do not add until break-even approached"
+        },
+        "Dividend Stocks": {
+          "current": 0,
+          "recommended": 12.0,
+          "action": "Add",
+          "reason": "Earnings-backed compounding at favorable PEG ratios; increase from 9.2% as highest risk-adjusted equity holding"
+        },
+        "Consumer Staples": {
+          "current": 0,
+          "recommended": 7.0,
+          "action": "Add",
+          "reason": "Defensive pricing power and recession resilience; bring to target allocation from current 6.2%"
+        },
+        "Treasury Bonds": {
+          "current": 0,
+          "recommended": 14.0,
+          "action": "Add",
+          "reason": "Critical gap to fill \u2014 4.88% yield carry plus crisis hedging; deploy from cash as highest priority rebalance"
+        },
+        "Gold": {
+          "current": 0,
+          "recommended": 10.0,
+          "action": "Hold",
+          "reason": "Maintain near current 10.4% level; central bank demand and crisis correlation support holding; monitor for overshoot"
+        },
+        "Japan TOPIX": {
+          "current": 0,
+          "recommended": 4.0,
+          "action": "Add",
+          "reason": "Increase from 1.8% for international diversification; governance reform and yen tailwinds support thesis"
+        },
+        "Cash": {
+          "current": 0,
+          "recommended": 18.0,
+          "action": "Deploy",
+          "reason": "Reduce from 33.5% by deploying 15.5% into Treasury Bonds, Dividend Stocks, Consumer Staples, and Japan TOPIX"
+        }
+      },
+      "cagr": {
+        "current": 13.2,
+        "recommended": 11.0,
+        "reason": "The synthesis portfolio balances Wood's growth conviction (58% equity allocation targeting 13-15% CAGR) with Lynch's earnings discipline (emphasizing dividend compounders over speculative positions) and Dalio's crash resilience (24% in Treasury Bonds and Gold to limit drawdowns to approximately -18% during a -30% equity crash). The 11.0% blended CAGR exceeds the 10.2% target path and provides a margin of safety for the 400M objective. Monthly contributions of 600K KRW, quarterly bonuses, and four RSU tranches of approximately 6.6M KRW each further de-risk the path by providing consistent capital inflows that benefit from dollar-cost averaging during drawdowns."
+      },
+      "recommendations": [
+        "[HIGH] Deploy 22.5M KRW from cash into Treasury Bonds (KODEX \ubbf8\uad6d30\ub144\uad6d\ucc44\uc561\ud2f0\ube0c) immediately \u2014 this is a zero-allocation position with a -16% drift from target and represents the largest risk in the current portfolio",
+        "[HIGH] Increase Dividend Stocks by 4.5M KRW (approximately 350 additional shares) over the next 2-3 weeks to bring allocation from 9.2% to 12%",
+        "[MEDIUM] Add 3.5M KRW to Japan TOPIX (approximately 120 shares) to increase from 1.8% to 4%, capturing governance reform upside and international diversification",
+        "[MEDIUM] Add 1.3M KRW to Consumer Staples (approximately 100 shares) to bring allocation from 6.2% to 7% target",
+        "[LOW] Trim AI Core Power by approximately 130 shares (3.6M KRW) only if allocation drifts above 28% again; current 28.2% is within tolerance of 26% target",
+        "[LOW] Evaluate replacing AI Tech TOP10 with a straight S&P 500 or NASDAQ 100 ETF if the covered-call drag persists beyond Q3 2026"
+      ],
+      "market_outlook": "The macro environment in March 2026 presents a complex but navigable landscape for this portfolio:\n\n**Interest Rates:** The Fed has signaled two to three rate cuts for 2026 amid steady economic growth and persistent inflation near 3%. The incoming Fed Chair Kevin Warsh (confirmed January 2026) is viewed as more hawkish than his predecessor, which may delay aggressive easing. The 30-year yield at 4.88% reflects ongoing fiscal concerns, rising bond supply, and above-target inflation. For this portfolio, elevated yields make Treasury Bonds both attractive as carry instruments and effective as equity hedges during future risk-off episodes.\n\n**AI and Technology:** AI capital expenditure continues to surge, with major tech companies collectively committing hundreds of billions through 2026. The power infrastructure theme underpinning AI Core Power remains intact \u2014 US data center electricity demand is in a structural growth phase. However, any deceleration in AI spending growth (not reversal, merely deceleration) could trigger a 20-30% correction in AI-adjacent equities. Position sizing must reflect this binary risk.\n\n**Gold and Commodities:** Gold above $5,000/oz reflects structural demand from central banks (notably China's 15-month buying streak), fiscal deficit concerns, and geopolitical uncertainty. Major bank forecasts range from $4,300 (Macquarie average) to $6,100-6,300 (Wells Fargo year-end). The wide forecast dispersion signals uncertainty \u2014 maintain the current allocation but set drift alerts at 13% for trimming.\n\n**Japan:** Corporate governance reforms continue to drive capital efficiency improvements in Japanese equities. The TOPIX has benefited from a weak yen boosting export competitiveness and foreign investor inflows. The 4% allocation provides meaningful diversification with moderate growth potential.\n\n**Risk Scenarios:** The primary risk is a synchronized global equity drawdown triggered by either (a) a tariff escalation and trade war deepening, (b) a stagflationary shock where inflation reaccelerates while growth stalls, or (c) an AI capex disappointment that reprices the entire tech sector. The 24% safe allocation (Treasury Bonds + Gold) is designed to partially offset these scenarios through negative correlation and crisis rally mechanics.",
+      "persona_discussions": {
+        "Cathie Wood": "I fundamentally disagree with Dalio's instinct to park 16% in Treasury Bonds at this juncture. With the 30-year yield at 4.88% and potential for further steepening driven by fiscal deficits and bond supply, duration risk in long bonds is acute. If rates rise another 50bps, the KODEX 30-year bond ETF could lose 10-15% of its value \u2014 that is not \"safe.\" I would rather own AI infrastructure with a secular demand tailwind than bet on rate cuts that may not materialize for years.\n\nI partially agree with Lynch's concern about AI Tech TOP10 valuations. The covered-call overlay does create a drag, and the underlying PEG ratios for mega-cap tech are elevated. However, Lynch underestimates the magnitude of the AI earnings cycle. These companies are not tulip bulbs \u2014 they are generating real cash flows and building monopolistic moats. The comparison to 1999 is lazy; the earnings base today is orders of magnitude larger.\n\nWhere I agree with both: the cash overweight is an emergency that needs to be resolved. 33.5% in cash when you need 10.2% CAGR is financial self-sabotage.",
+        "Peter Lynch": "Wood's conviction in AI infrastructure is not wrong in direction \u2014 but it is wrong in magnitude. Putting 35% in a single thematic ETF is what I call a \"story stock portfolio.\" The story is compelling, the earnings may eventually justify the price, but the concentration risk is extreme. If AI capex disappoints by even 10-15%, this portfolio could suffer a 15% drawdown from AI Core Power alone.\n\nI agree with Dalio that the safe sleeve needs to be more robust than what Wood proposes. Treasury Bonds at 5% is insufficient \u2014 at 4.88% yield on the 30-year, you are getting paid well for providing portfolio insurance. Schwab's 2026 outlook expects solid fixed income returns and notes that coupon income alone provides meaningful carry. A 14-16% allocation to bonds is warranted.\n\nWhere I push back on Dalio: Gold at 12% is too much. Gold has surged past $5,000/oz and major banks are already debating whether it is overextended. Wells Fargo has a year-end target of $6,100-6,300, but JPMorgan sees $5,000 by Q4 \u2014 at current prices, the risk-reward is more balanced than it appears. An 8-10% allocation captures the diversification benefit without excessive commodity concentration.\n\nThe fundamental truth: this portfolio needs to transition from \"what might go up the most\" to \"what is most likely to compound reliably.\"",
+        "Ray Dalio": "I respect Wood's conviction in AI infrastructure \u2014 the secular thesis is sound. But her 35% concentration in a single thematic ETF violates the most basic principles of portfolio construction. If AI Core Power drops 40% (entirely possible given its 100%+ run from IPO), the portfolio loses 14% from one holding alone. That is not investing \u2014 it is speculation.\n\nLynch's approach is more balanced and I appreciate his emphasis on earnings quality. His 14% Treasury Bond allocation aligns closely with my view. Where I disagree: his 8% Gold allocation is too low. Gold's role in the portfolio is not about return maximization \u2014 it is about crisis correlation. At 8%, the diversification benefit is diluted below the threshold where it meaningfully offsets equity drawdowns.\n\nThe key insight all three of us agree on: the cash must be deployed. The disagreement is only about where. My strong view is that at least 16% should flow into Treasury Bonds immediately \u2014 this is not optional, it is the most critical rebalancing action in the entire portfolio.",
+        "Synthesis": "The three personas converge on one unambiguous conclusion: the 33.5% cash overweight is the portfolio's greatest risk and must be resolved immediately. Beyond that, the debate centers on three key tensions:\n\n**Tension 1: AI Concentration vs. Diversification.**\nWood wants 35% in AI Core Power; Lynch wants 22%; Dalio wants 24%. The fundamental disagreement is whether the AI infrastructure super-cycle justifies premium valuations and concentration risk. Wood argues the secular demand is so strong that standard valuation metrics understate the opportunity. Lynch counters that even great businesses become bad investments at excessive prices. Dalio notes that concentration risk is the enemy of path-dependent objectives like the 400M target. The synthesis lands at 26% \u2014 a meaningful overweight that acknowledges the thesis while respecting position-sizing discipline.\n\n**Tension 2: Treasury Bond Allocation.**\nWood offers a grudging 5%; Lynch supports 14%; Dalio demands 16%. The 30-year yield at 4.88% makes this a more compelling debate than it would be at 2% yields. The carry alone is attractive, and the crisis-hedging property is invaluable for a portfolio that cannot afford a prolonged drawdown recovery. The synthesis allocation of 14% reflects the strong fundamental case while acknowledging Wood's concern about duration risk if rates continue rising.\n\n**Tension 3: Gold \u2014 How Much Is Enough?**\nWood and Lynch both trim Gold (to 12% and 8% respectively), while Dalio holds at 10%. With Gold above $5,000/oz and major banks publishing targets between $4,300 and $6,300 for year-end, the risk-reward is genuinely uncertain. The structural tailwinds (central bank buying, fiscal deficits, geopolitical risk) support continued demand, but the parabolic price action raises mean-reversion risk. The synthesis holds at 10%, capturing the diversification benefit while respecting the elevated price level.\n\n**Point of Agreement: Dividend Stocks Are Underappreciated.**\nAll three personas agree (from different angles) that the current 9.2% allocation to Dividend Stocks is below optimal. Wood sees them as ballast, Lynch sees them as his highest-conviction pick, and Dalio values their lower beta. The synthesis increases to 12%."
       }
     }
   ]
