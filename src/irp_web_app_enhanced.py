@@ -2103,7 +2103,7 @@ def page_export_snapshot():
     review_mode = st.radio(
         "Review Mode",
         ["Standard Review", "Three-Persona Review"],
-        index=0,
+        index=1,
         horizontal=True,
         help="Standard: single AI reviewer. Persona: Cathie Wood (growth) + Peter Lynch (valuation) + Ray Dalio (crash protection)",
     )
@@ -2184,7 +2184,7 @@ def page_export_snapshot():
                 "Timeout (seconds)",
                 min_value=60,
                 max_value=600,
-                value=180,
+                value=300,
                 step=30,
                 key="cli_timeout",
             )

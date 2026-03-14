@@ -1073,7 +1073,7 @@ def run_claude_cli(
     prompt: str,
     *,
     model: str = "sonnet",
-    timeout_seconds: int = 180,
+    timeout_seconds: int = 300,
     max_budget_usd: float | None = None,
 ) -> dict:
     """Run a prompt through `claude -p` and return the result.
