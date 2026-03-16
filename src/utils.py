@@ -215,6 +215,11 @@ def generate_portfolio_snapshot(
         "- Monthly contribution: 600K KRW + quarterly bonuses",
         "- RSU: 4 tranches (2027-2030), ~6.6M KRW each after-tax",
         "- Strategy: Option B (Moderate), 10.2% target CAGR",
+        "- **Risk Tolerance:** Maximum allowable peak-to-trough drawdown: 20%",
+        "",
+        "## Assumptions",
+        "- **Cash** represents the mandatory 30% safe-asset allocation required by Korean IRP regulations, not idle money.",
+        "- **Yield Reinvestment:** Assume all dividends/distributions (including covered call premiums from AI Tech TOP10 and quarterly dividends from Dividend Stocks) are automatically reinvested into the asset with the highest negative drift. Factor this into Blended CAGR calculations.",
         "",
         "## Current Holdings",
         "| Asset | Shares | Price (KRW) | Value (KRW) | Alloc % | Target % | Drift |",
@@ -562,6 +567,11 @@ def generate_persona_export(
         "- Monthly contribution: 600K KRW + quarterly bonuses",
         "- RSU: 4 tranches (2027-2030), ~6.6M KRW each after-tax",
         "- Strategy: Option B (Moderate), 10.2% target CAGR",
+        "- **Risk Tolerance:** Maximum allowable peak-to-trough drawdown: 20%",
+        "",
+        "## Assumptions",
+        "- **Cash** represents the mandatory 30% safe-asset allocation required by Korean IRP regulations, not idle money.",
+        "- **Yield Reinvestment:** Assume all dividends/distributions (including covered call premiums from AI Tech TOP10 and quarterly dividends from Dividend Stocks) are automatically reinvested into the asset with the highest negative drift. Factor this into Blended CAGR calculations.",
         "",
         "## Current Holdings",
         "| Asset | Shares | Price (KRW) | Value (KRW) | Alloc % | Target % | Drift |",
@@ -696,6 +706,21 @@ def generate_persona_export(
     lines.append("  In COVID: consumer staples and healthcare held as predicted by business quality.")
     lines.append("  In IT Bubble: P/E of 200 was the obvious warning sign — survivors had real businesses.")
     lines.append('  Ask: does each ETF holding pass the "what does this company actually do?" test?')
+
+    # Dynamic persona interaction: Lynch scrutinizes the top gainer
+    top_gainer = max(
+        ((asset, gl['gain_pct']) for asset, gl in gains_losses.items()),
+        key=lambda x: x[1],
+        default=None,
+    )
+    if top_gainer and top_gainer[1] > 0:
+        lines.append(
+            f"- **Persona interaction:** Specifically scrutinize the valuation of "
+            f"'{top_gainer[0]}' given its recent {top_gainer[1]:+.1f}% gain. "
+            f"Challenge Cathie Wood's growth thesis for this asset with concrete "
+            f"earnings-based metrics."
+        )
+
     lines.append("")
     lines.append("### PERSONA 3: Ray Dalio — Crash-Proof Safe Sleeve")
     lines.append('**Mandate:** "How should the remaining 30% be structured in safe assets so that even if the stock market crashes by -30%, my total net worth doesn\'t deviate from the path toward 400 million?"')
