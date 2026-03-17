@@ -675,7 +675,18 @@ def generate_transaction_id():
     import uuid
     return str(uuid.uuid4())[:8]
 
-def add_transaction(asset, trans_type, date_str, shares, price_per_share, notes=""):
+def generate_batch_id(prefix: str = "RB") -> str:
+    """Generate batch ID in format RB-YYYYMMDD-SEQ."""
+    data = load_data()
+    today_str = datetime.now().strftime("%Y%m%d")
+    existing = {t.get('batch_id', '') for t in data.get('transactions', [])}
+    seq = 1
+    while f"{prefix}-{today_str}-{seq:03d}" in existing:
+        seq += 1
+    return f"{prefix}-{today_str}-{seq:03d}"
+
+def add_transaction(asset, trans_type, date_str, shares, price_per_share, notes="",
+                    batch_id=None, status="completed"):
     """Add a transaction (buy, sell, contribution, or dividend)"""
     data = load_data()
     
@@ -691,6 +702,8 @@ def add_transaction(asset, trans_type, date_str, shares, price_per_share, notes=
         'price_per_share': price_per_share,
         'total_cost': shares * price_per_share,
         'notes': notes,
+        'batch_id': batch_id,
+        'status': status,  # 'pending' or 'completed'
         'created_at': datetime.now().isoformat()
     }
     
@@ -706,6 +719,49 @@ def delete_transaction(transaction_id):
         save_data(data)
         return True
     return False
+
+def update_transaction(transaction_id: str, updates: dict) -> bool:
+    """Update fields of an existing transaction by ID."""
+    data = load_data()
+    for t in data.get('transactions', []):
+        if t['id'] == transaction_id:
+            t.update(updates)
+            if 'price_per_share' in updates or 'shares' in updates:
+                t['total_cost'] = t['shares'] * t['price_per_share']
+            save_data(data)
+            return True
+    return False
+
+def get_pending_transactions(batch_id: str = None) -> list:
+    """Get all pending transactions, optionally filtered by batch_id."""
+    data = load_data()
+    pending = [t for t in data.get('transactions', [])
+               if t.get('status') == 'pending']
+    if batch_id:
+        pending = [t for t in pending if t.get('batch_id') == batch_id]
+    return pending
+
+def confirm_batch_transactions(batch_id: str, price_map: dict) -> int:
+    """Confirm all pending transactions in a batch with actual prices.
+
+    price_map: {transaction_id: {'price_per_share': float, 'shares': int (optional)}}
+    Returns count of updated transactions.
+    """
+    data = load_data()
+    count = 0
+    for t in data.get('transactions', []):
+        if t.get('batch_id') == batch_id and t.get('status') == 'pending':
+            if t['id'] in price_map:
+                info = price_map[t['id']]
+                t['price_per_share'] = info['price_per_share']
+                if 'shares' in info:
+                    t['shares'] = info['shares']
+                t['total_cost'] = t['shares'] * t['price_per_share']
+                t['status'] = 'completed'
+                t['confirmed_at'] = datetime.now().isoformat()
+                count += 1
+    save_data(data)
+    return count
 
 def get_transactions(asset=None):
     """Get all transactions, optionally filtered by asset"""
@@ -727,6 +783,8 @@ def calculate_cost_basis(asset):
     total_cost = 0
     
     for trans in transactions:
+        if trans.get('status') == 'pending':
+            continue
         if trans['type'] == 'buy':
             total_shares += trans['shares']
             total_cost += trans['total_cost']
@@ -1426,16 +1484,23 @@ def page_rebalancing_alerts():
                     'contribution': '💰 Contribution',
                     'dividend': '📊 Dividend',
                 }
+                status_labels = {
+                    'pending': '⏳ Pending',
+                    'completed': '✅ Completed',
+                }
                 for t in filtered_trans:
                     is_cash = t['type'] in ('contribution', 'dividend')
+                    is_pending = t.get('status') == 'pending'
                     trans_table.append({
                         'ID': t['id'],
+                        'Batch': t.get('batch_id', '—') or '—',
                         'Date': t['date'],
                         'Asset': t['asset'],
                         'Type': type_labels.get(t['type'], t['type']),
+                        'Status': status_labels.get(t.get('status', 'completed'), '✅ Completed'),
                         'Shares': '-' if is_cash else str(t['shares']),
-                        'Price': f"₩{t['price_per_share']:,.0f}" if not is_cash else '-',
-                        'Total': f"₩{t['total_cost']:,.0f}",
+                        'Price': '—' if (is_cash or is_pending) else f"₩{t['price_per_share']:,.0f}",
+                        'Total': '—' if is_pending else f"₩{t['total_cost']:,.0f}",
                         'Notes': t.get('notes', '')
                     })
                 
@@ -1733,6 +1798,8 @@ def page_rebalancing_alerts():
                     'Target Value': f"{target_value:,.0f}",
                     'Amount (KRW)': f"{abs(difference):,.0f}",
                     'Shares to BUY': shares_to_trade,
+                    '_asset_name': asset,
+                    '_shares': int(shares_to_trade) if shares_to_trade != '-' else 0,
                     '_amount': abs(difference)
                 })
                 total_buy += abs(difference)
@@ -1744,6 +1811,8 @@ def page_rebalancing_alerts():
                     'Target Value': f"{target_value:,.0f}",
                     'Amount (KRW)': f"{abs(difference):,.0f}",
                     'Shares to SELL': shares_to_trade,
+                    '_asset_name': asset,
+                    '_shares': int(shares_to_trade) if shares_to_trade != '-' else 0,
                     '_amount': abs(difference)
                 })
                 total_sell += abs(difference)
@@ -1809,8 +1878,10 @@ def page_rebalancing_alerts():
         wf_status = workflow.get('status', 'not_started')
         
         # Progress bar
-        status_steps = ['not_started', 'sells_executed', 'settling', 'buys_executed', 'completed']
-        step_labels = ['Not Started', 'Sells Executed', 'Awaiting Settlement', 'Buys Executed', 'Completed']
+        status_steps = ['not_started', 'sells_executed', 'sells_confirmed',
+                        'buys_executed', 'buys_confirmed', 'completed']
+        step_labels = ['Not Started', 'Sells Executed', 'Sells Confirmed',
+                        'Buys Executed', 'Buys Confirmed', 'Completed']
         step_idx = status_steps.index(wf_status) if wf_status in status_steps else 0
         st.progress(step_idx / (len(status_steps) - 1), text=f"Step {step_idx}/{len(status_steps)-1}: {step_labels[step_idx]}")
         
@@ -1821,26 +1892,205 @@ def page_rebalancing_alerts():
             if wf_status == 'not_started':
                 st.write("🔵 **Status**: Ready to start rebalancing")
                 if st.button("📉 I've executed the SELL orders", key="wf_sell_done", type="primary"):
+                    batch_id = generate_batch_id("RB")
+                    today_str = datetime.now(KR_TZ).strftime("%Y-%m-%d")
+                    sell_tx_ids = []
+                    for t in trades_sell:
+                        asset_name = t['_asset_name']
+                        shares = t['_shares']
+                        if asset_name == 'Cash' or shares == 0:
+                            continue
+                        tx = add_transaction(
+                            asset=asset_name,
+                            trans_type='sell',
+                            date_str=today_str,
+                            shares=shares,
+                            price_per_share=0,
+                            notes="Rebalancing sell (pending confirmation)",
+                            batch_id=batch_id,
+                            status='pending'
+                        )
+                        sell_tx_ids.append(tx['id'])
+                    data = load_data()
                     data['rebalancing_workflow'] = {
                         'status': 'sells_executed',
                         'sell_date': datetime.now().isoformat(),
                         'settlement_date': settlement['settlement_date'].isoformat(),
                         'sells_total': total_sell,
-                        'planned_buys': [{'asset': t['Asset'], 'amount': t['_amount']} for t in trades_buy],
+                        'sell_batch_id': batch_id,
+                        'sell_tx_ids': sell_tx_ids,
+                        'planned_buys': [{'asset': t['_asset_name'], 'amount': t['_amount'],
+                                          'shares': t['_shares']} for t in trades_buy
+                                         if t['_asset_name'] != 'Cash' and t['_shares'] > 0],
                     }
                     save_data(data)
-                    st.success("✅ Sell orders recorded! Waiting for settlement...")
                     st.rerun()
-            
-            elif wf_status == 'sells_executed' or wf_status == 'settling':
+
+            elif wf_status == 'sells_executed':
+                sell_batch = workflow.get('sell_batch_id', '')
+                pending_sells = get_pending_transactions(sell_batch) if sell_batch else []
+
+                if pending_sells:
+                    st.write("⏳ **Status**: Sell orders placed — enter broker execution prices")
+                    st.caption(f"Batch: `{sell_batch}`")
+                    with st.form("confirm_sell_prices"):
+                        st.write("📋 Enter the **actual sale price per share** from your broker report:")
+                        # Header row
+                        hcol1, hcol2, hcol3, hcol4 = st.columns([3, 2, 2, 2])
+                        with hcol1:
+                            st.markdown("**Asset**")
+                        with hcol2:
+                            st.markdown("**Shares Sold**")
+                        with hcol3:
+                            st.markdown("**Price per Share**")
+                        with hcol4:
+                            st.markdown("**Ref. Market Price**")
+                        st.divider()
+                        sell_inputs = {}
+                        preview_data = []
+                        for tx in pending_sells:
+                            etf_code = ETF_CONFIG.get(tx['asset'], {}).get('code', '')
+                            label = f"{tx['asset']} [{etf_code}]" if etf_code else tx['asset']
+                            market_price = prices.get(tx['asset'], {}).get('price', 0)
+                            rcol1, rcol2, rcol3, rcol4 = st.columns([3, 2, 2, 2])
+                            with rcol1:
+                                st.write(label)
+                            with rcol2:
+                                shares_val = st.number_input(
+                                    f"shares_{tx['asset']}",
+                                    min_value=0,
+                                    value=tx['shares'],
+                                    step=1,
+                                    key=f"sell_shares_{tx['id']}",
+                                    label_visibility="collapsed",
+                                    help="Adjust if actual shares sold differs from planned"
+                                )
+                            with rcol3:
+                                price_val = st.number_input(
+                                    f"price_{tx['asset']}",
+                                    min_value=0,
+                                    value=0,
+                                    step=100,
+                                    key=f"sell_price_{tx['id']}",
+                                    label_visibility="collapsed",
+                                    help="Enter broker execution price"
+                                )
+                            with rcol4:
+                                st.write(f"₩{market_price:,.0f}")
+                            sell_inputs[tx['id']] = {'shares': shares_val, 'price_per_share': price_val}
+                            preview_data.append({'asset': tx['asset'], 'shares': shares_val,
+                                                 'market_price': market_price, 'tx_id': tx['id']})
+
+                        if st.form_submit_button("✅ Confirm All Sell Prices", type="primary"):
+                            all_filled = all(v['price_per_share'] > 0 for v in sell_inputs.values())
+                            if not all_filled:
+                                st.error("모든 가격을 입력해주세요 (All prices must be > 0)")
+                            else:
+                                # Validate prices are within reasonable range of market
+                                warnings = []
+                                for pv in preview_data:
+                                    entered = sell_inputs[pv['tx_id']]['price_per_share']
+                                    mkt = pv['market_price']
+                                    if mkt > 0 and (entered < mkt * 0.5 or entered > mkt * 1.5):
+                                        warnings.append(f"{pv['asset']}: ₩{entered:,} (market: ₩{mkt:,.0f})")
+                                if warnings:
+                                    st.warning("⚠️ Price(s) differ significantly from market:\n" +
+                                               "\n".join(f"- {w}" for w in warnings) +
+                                               "\n\nSubmit again to confirm if correct.")
+                                    st.session_state['sell_price_warning_shown'] = True
+                                elif not st.session_state.get('sell_price_warning_shown', False):
+                                    confirm_batch_transactions(sell_batch, sell_inputs)
+                                    data = load_data()
+                                    data['rebalancing_workflow']['status'] = 'sells_confirmed'
+                                    data['rebalancing_workflow']['sells_confirmed_at'] = datetime.now().isoformat()
+                                    save_data(data)
+                                    st.session_state.pop('sell_price_warning_shown', None)
+                                    st.rerun()
+                                else:
+                                    # Warning was shown before, user submitted again — accept
+                                    confirm_batch_transactions(sell_batch, sell_inputs)
+                                    data = load_data()
+                                    data['rebalancing_workflow']['status'] = 'sells_confirmed'
+                                    data['rebalancing_workflow']['sells_confirmed_at'] = datetime.now().isoformat()
+                                    save_data(data)
+                                    st.session_state.pop('sell_price_warning_shown', None)
+                                    st.rerun()
+                else:
+                    data = load_data()
+                    data['rebalancing_workflow']['status'] = 'sells_confirmed'
+                    save_data(data)
+                    st.rerun()
+
+            elif wf_status == 'sells_confirmed':
                 sell_date = workflow.get('sell_date', '')[:10]
                 target_settle = workflow.get('settlement_date', '')[:10]
                 today_kr = datetime.now(KR_TZ).date()
                 settle_dt = date.fromisoformat(target_settle) if target_settle else today_kr
                 days_left = (settle_dt - today_kr).days
-                
+
+                # Allow editing confirmed sell prices
+                sell_batch = workflow.get('sell_batch_id', '')
+                if sell_batch:
+                    confirmed_sells = [t for t in get_transactions()
+                                       if t.get('batch_id') == sell_batch and t.get('status') == 'completed']
+                    if confirmed_sells:
+                        with st.expander("✏️ Edit Sell Transactions (correction)", expanded=False):
+                            with st.form("edit_sell_prices"):
+                                st.write("📋 Correct **shares sold** and/or **price per share** from your broker report:")
+                                # Header row
+                                hcol1, hcol2, hcol3, hcol4 = st.columns([3, 2, 2, 2])
+                                with hcol1:
+                                    st.markdown("**Asset**")
+                                with hcol2:
+                                    st.markdown("**Shares Sold**")
+                                with hcol3:
+                                    st.markdown("**Price per Share**")
+                                with hcol4:
+                                    st.markdown("**Ref. Market Price**")
+                                st.divider()
+                                edit_inputs = {}
+                                for tx in confirmed_sells:
+                                    etf_code = ETF_CONFIG.get(tx['asset'], {}).get('code', '')
+                                    label = f"{tx['asset']} [{etf_code}]" if etf_code else tx['asset']
+                                    market_price = prices.get(tx['asset'], {}).get('price', 0)
+                                    stored_price = int(tx['price_per_share'])
+                                    rcol1, rcol2, rcol3, rcol4 = st.columns([3, 2, 2, 2])
+                                    with rcol1:
+                                        st.write(label)
+                                    with rcol2:
+                                        shares_val = st.number_input(
+                                            f"shares_{tx['asset']}",
+                                            min_value=0,
+                                            value=tx['shares'],
+                                            step=1,
+                                            key=f"edit_sell_shares_{tx['id']}",
+                                            label_visibility="collapsed",
+                                            help="Adjust if actual shares differs"
+                                        )
+                                    with rcol3:
+                                        price_val = st.number_input(
+                                            f"price_{tx['asset']}",
+                                            min_value=1,
+                                            value=stored_price if stored_price > 0 else 0,
+                                            step=100,
+                                            key=f"edit_sell_price_{tx['id']}",
+                                            label_visibility="collapsed",
+                                            help="Enter broker execution price"
+                                        )
+                                    with rcol4:
+                                        st.write(f"₩{market_price:,.0f}")
+                                    edit_inputs[tx['id']] = {'shares': shares_val, 'price_per_share': price_val}
+                                if st.form_submit_button("💾 Update Sell Transactions"):
+                                    for tid, vals in edit_inputs.items():
+                                        update_transaction(tid, {
+                                            'shares': vals['shares'],
+                                            'price_per_share': vals['price_per_share']
+                                        })
+                                    st.success("✅ Sell transactions updated!")
+                                    st.rerun()
+
                 if days_left > 0:
-                    st.write(f"⏳ **Status**: Waiting for settlement")
+                    st.write("⏳ **Status**: Sells confirmed. Waiting for settlement")
                     st.write(f"Sold on: **{sell_date}**")
                     st.write(f"Cash settles: **{target_settle}** ({days_left} day(s) remaining)")
                     st.warning("💡 Do NOT execute buy orders yet — cash has not settled.")
@@ -1849,29 +2099,170 @@ def page_rebalancing_alerts():
                     st.write(f"Sold on: **{sell_date}** → Settled: **{target_settle}**")
                     st.success("💰 Cash is available. Execute BUY orders now with current prices.")
                     if st.button("📈 I've executed the BUY orders", key="wf_buy_done", type="primary"):
+                        buy_batch_id = generate_batch_id("RB")
+                        buy_today = datetime.now(KR_TZ).strftime("%Y-%m-%d")
+                        buy_tx_ids = []
+                        for planned in workflow.get('planned_buys', []):
+                            asset_name = planned['asset']
+                            shares = planned.get('shares', 0)
+                            if asset_name == 'Cash' or shares == 0:
+                                continue
+                            tx = add_transaction(
+                                asset=asset_name,
+                                trans_type='buy',
+                                date_str=buy_today,
+                                shares=shares,
+                                price_per_share=0,
+                                notes="Rebalancing buy (pending confirmation)",
+                                batch_id=buy_batch_id,
+                                status='pending'
+                            )
+                            buy_tx_ids.append(tx['id'])
+                        data = load_data()
                         data['rebalancing_workflow']['status'] = 'buys_executed'
                         data['rebalancing_workflow']['buy_date'] = datetime.now().isoformat()
+                        data['rebalancing_workflow']['buy_batch_id'] = buy_batch_id
+                        data['rebalancing_workflow']['buy_tx_ids'] = buy_tx_ids
                         save_data(data)
                         st.rerun()
-            
+
             elif wf_status == 'buys_executed':
-                st.write("✅ **Status**: All orders executed!")
+                buy_batch = workflow.get('buy_batch_id', '')
+                pending_buys = get_pending_transactions(buy_batch) if buy_batch else []
+
+                if pending_buys:
+                    st.write("⏳ **Status**: Buy orders placed — enter broker execution prices")
+                    st.caption(f"Batch: `{buy_batch}`")
+                    with st.form("confirm_buy_prices"):
+                        st.write("📋 Enter the **actual buy price per share** from your broker report (adjust shares if needed):")
+                        # Header row
+                        hcol1, hcol2, hcol3, hcol4 = st.columns([3, 2, 2, 2])
+                        with hcol1:
+                            st.markdown("**Asset**")
+                        with hcol2:
+                            st.markdown("**Shares Bought**")
+                        with hcol3:
+                            st.markdown("**Price per Share**")
+                        with hcol4:
+                            st.markdown("**Ref. Market Price**")
+                        st.divider()
+                        buy_inputs = {}
+                        buy_preview = []
+                        for tx in pending_buys:
+                            etf_code = ETF_CONFIG.get(tx['asset'], {}).get('code', '')
+                            label = f"{tx['asset']} [{etf_code}]" if etf_code else tx['asset']
+                            market_price = prices.get(tx['asset'], {}).get('price', 0)
+                            rcol1, rcol2, rcol3, rcol4 = st.columns([3, 2, 2, 2])
+                            with rcol1:
+                                st.write(label)
+                            with rcol2:
+                                shares_val = st.number_input(
+                                    f"shares_{tx['asset']}",
+                                    min_value=0,
+                                    value=tx['shares'],
+                                    step=1,
+                                    key=f"buy_shares_{tx['id']}",
+                                    label_visibility="collapsed"
+                                )
+                            with rcol3:
+                                price_val = st.number_input(
+                                    f"price_{tx['asset']}",
+                                    min_value=0,
+                                    value=0,
+                                    step=100,
+                                    key=f"buy_price_{tx['id']}",
+                                    label_visibility="collapsed",
+                                    help="Enter broker execution price"
+                                )
+                            with rcol4:
+                                st.write(f"₩{market_price:,.0f}")
+                            buy_inputs[tx['id']] = {'shares': shares_val, 'price_per_share': price_val}
+                            buy_preview.append({'asset': tx['asset'], 'shares': shares_val,
+                                                'market_price': market_price, 'tx_id': tx['id']})
+                        if st.form_submit_button("✅ Confirm All Buy Prices", type="primary"):
+                            all_filled = all(v['price_per_share'] > 0 for v in buy_inputs.values())
+                            if not all_filled:
+                                st.error("모든 가격을 입력해주세요 (All prices must be > 0)")
+                            else:
+                                # Validate prices are within reasonable range of market
+                                warnings = []
+                                for pv in buy_preview:
+                                    entered = buy_inputs[pv['tx_id']]['price_per_share']
+                                    mkt = pv['market_price']
+                                    if mkt > 0 and (entered < mkt * 0.5 or entered > mkt * 1.5):
+                                        warnings.append(f"{pv['asset']}: ₩{entered:,} (market: ₩{mkt:,.0f})")
+                                if warnings:
+                                    st.warning("⚠️ Price(s) differ significantly from market:\n" +
+                                               "\n".join(f"- {w}" for w in warnings) +
+                                               "\n\nSubmit again to confirm if correct.")
+                                    st.session_state['buy_price_warning_shown'] = True
+                                elif not st.session_state.get('buy_price_warning_shown', False):
+                                    confirm_batch_transactions(buy_batch, buy_inputs)
+                                    data = load_data()
+                                    data['rebalancing_workflow']['status'] = 'buys_confirmed'
+                                    data['rebalancing_workflow']['buys_confirmed_at'] = datetime.now().isoformat()
+                                    save_data(data)
+                                    st.session_state.pop('buy_price_warning_shown', None)
+                                    st.rerun()
+                                else:
+                                    confirm_batch_transactions(buy_batch, buy_inputs)
+                                    data = load_data()
+                                    data['rebalancing_workflow']['status'] = 'buys_confirmed'
+                                    data['rebalancing_workflow']['buys_confirmed_at'] = datetime.now().isoformat()
+                                    save_data(data)
+                                    st.session_state.pop('buy_price_warning_shown', None)
+                                    st.rerun()
+                else:
+                    data = load_data()
+                    data['rebalancing_workflow']['status'] = 'buys_confirmed'
+                    save_data(data)
+                    st.rerun()
+
+            elif wf_status == 'buys_confirmed':
+                st.write("✅ **Status**: All orders confirmed!")
                 st.write("Update your holdings below to complete the rebalancing.")
-        
+                if st.button("🏁 Complete Rebalancing", key="wf_complete", type="primary"):
+                    data = load_data()
+                    data['rebalancing_workflow']['status'] = 'completed'
+                    data['rebalancing_workflow']['completed_at'] = datetime.now().isoformat()
+                    save_data(data)
+                    st.rerun()
+
+            elif wf_status == 'completed':
+                st.write("🎉 **Status**: Rebalancing completed!")
+                st.write("You can reset the workflow to start a new cycle.")
+
         with wf_col2:
             if wf_status != 'not_started':
                 st.write("**Workflow Summary:**")
                 if workflow.get('sell_date'):
                     st.write(f"📉 Sells: {workflow['sell_date'][:10]}")
+                if workflow.get('sell_batch_id'):
+                    st.caption(f"Sell Batch: `{workflow['sell_batch_id']}`")
+                if workflow.get('sells_confirmed_at'):
+                    st.write(f"✅ Sells Confirmed: {workflow['sells_confirmed_at'][:10]}")
                 if workflow.get('settlement_date'):
                     st.write(f"💰 Settlement: {workflow['settlement_date'][:10]}")
                 if workflow.get('buy_date'):
                     st.write(f"📈 Buys: {workflow['buy_date'][:10]}")
+                if workflow.get('buy_batch_id'):
+                    st.caption(f"Buy Batch: `{workflow['buy_batch_id']}`")
+                if workflow.get('buys_confirmed_at'):
+                    st.write(f"✅ Buys Confirmed: {workflow['buys_confirmed_at'][:10]}")
                 if workflow.get('sells_total'):
                     st.write(f"💵 Amount: ₩{workflow['sells_total']:,.0f}")
-                
+
                 st.write("")
                 if st.button("🔄 Reset Workflow", key="wf_reset", help="Reset if you want to start over"):
+                    data = load_data()
+                    sell_batch = workflow.get('sell_batch_id')
+                    buy_batch = workflow.get('buy_batch_id')
+                    batch_ids = {b for b in (sell_batch, buy_batch) if b}
+                    if batch_ids:
+                        data['transactions'] = [
+                            t for t in data.get('transactions', [])
+                            if not (t.get('status') == 'pending' and t.get('batch_id') in batch_ids)
+                        ]
                     data['rebalancing_workflow'] = {'status': 'not_started'}
                     save_data(data)
                     st.rerun()
