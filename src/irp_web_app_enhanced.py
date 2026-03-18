@@ -447,7 +447,7 @@ def load_data():
     """Load data from JSON file"""
     data_file = get_data_file()
     if os.path.exists(data_file):
-        with open(data_file, 'r') as f:
+        with open(data_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
             # Ensure holdings structure exists (for backward compatibility)
             if 'holdings' not in data:
@@ -567,8 +567,8 @@ def get_holdings():
 def save_data(data):
     """Save data to JSON file"""
     data_file = get_data_file()
-    with open(data_file, 'w') as f:
-        json.dump(data, f, indent=2, default=str)
+    with open(data_file, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, default=str, ensure_ascii=False)
 
 
 def load_allocation_target():
