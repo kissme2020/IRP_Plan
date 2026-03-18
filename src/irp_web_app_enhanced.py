@@ -2250,6 +2250,67 @@ def page_rebalancing_alerts():
 
             elif wf_status == 'buys_confirmed':
                 st.write("✅ **Status**: All orders confirmed!")
+
+                # Allow editing confirmed buy prices (mirroring sell-side edit)
+                buy_batch = workflow.get('buy_batch_id', '')
+                if buy_batch:
+                    confirmed_buys = [t for t in get_transactions()
+                                      if t.get('batch_id') == buy_batch and t.get('status') == 'completed']
+                    if confirmed_buys:
+                        with st.expander("✏️ Edit Buy Transactions (correction)", expanded=False):
+                            with st.form("edit_buy_prices"):
+                                st.write("📋 Correct **shares bought** and/or **price per share** from your broker report:")
+                                hcol1, hcol2, hcol3, hcol4 = st.columns([3, 2, 2, 2])
+                                with hcol1:
+                                    st.markdown("**Asset**")
+                                with hcol2:
+                                    st.markdown("**Shares Bought**")
+                                with hcol3:
+                                    st.markdown("**Price per Share**")
+                                with hcol4:
+                                    st.markdown("**Ref. Market Price**")
+                                st.divider()
+                                edit_buy_inputs = {}
+                                for tx in confirmed_buys:
+                                    etf_code = ETF_CONFIG.get(tx['asset'], {}).get('code', '')
+                                    label = f"{tx['asset']} [{etf_code}]" if etf_code else tx['asset']
+                                    market_price = prices.get(tx['asset'], {}).get('price', 0)
+                                    stored_price = int(tx['price_per_share'])
+                                    rcol1, rcol2, rcol3, rcol4 = st.columns([3, 2, 2, 2])
+                                    with rcol1:
+                                        st.write(label)
+                                    with rcol2:
+                                        shares_val = st.number_input(
+                                            f"shares_{tx['asset']}",
+                                            min_value=0,
+                                            value=tx['shares'],
+                                            step=1,
+                                            key=f"edit_buy_shares_{tx['id']}",
+                                            label_visibility="collapsed",
+                                            help="Adjust if actual shares differs"
+                                        )
+                                    with rcol3:
+                                        price_val = st.number_input(
+                                            f"price_{tx['asset']}",
+                                            min_value=1,
+                                            value=stored_price if stored_price > 0 else 0,
+                                            step=100,
+                                            key=f"edit_buy_price_{tx['id']}",
+                                            label_visibility="collapsed",
+                                            help="Enter broker execution price"
+                                        )
+                                    with rcol4:
+                                        st.write(f"₩{market_price:,.0f}")
+                                    edit_buy_inputs[tx['id']] = {'shares': shares_val, 'price_per_share': price_val}
+                                if st.form_submit_button("💾 Update Buy Transactions"):
+                                    for tid, vals in edit_buy_inputs.items():
+                                        update_transaction(tid, {
+                                            'shares': vals['shares'],
+                                            'price_per_share': vals['price_per_share']
+                                        })
+                                    st.success("✅ Buy transactions updated!")
+                                    st.rerun()
+
                 st.write("Update your holdings below to complete the rebalancing.")
                 if st.button("🏁 Complete Rebalancing", key="wf_complete", type="primary"):
                     data = load_data()

@@ -384,26 +384,33 @@ USER JOURNEY - HOW REBALANCING ALERTS WORK:
    └─ Days until next rebalance due
    └─ Alert if overdue
 
-10. SETTLEMENT TIMELINE (T+2 Korea Business Days)
-    └─ Calculate settlement date via get_settlement_date() in utils.py
+10. CASH DEPOSIT TIMELINE (T+1 Korea Business Day)
+    └─ Calculate deposit date via get_settlement_date() in utils.py (T+1)
     └─ Excludes weekends (Sat/Sun)
     └─ Excludes Korean public holidays (holidays.KR() package)
     └─ Uses Asia/Seoul timezone
-    └─ Shows trade date, settlement date, and any holidays in range
+    └─ 15:00 KST cutoff: sell after 15:00 → effective trade date shifts to next business day
+    └─ Shows trade date, deposit date, and any holidays in range
 
-11. REBALANCING WORKFLOW TRACKER
-    └─ State machine: not_started → sells_executed → settling → buys_executed → completed
-    └─ Progress bar visualization
-    └─ Warns "Do NOT buy yet" during settlement window
-    └─ Reminds to recalculate buy offers at current prices on settlement day
+11. REBALANCING WORKFLOW TRACKER (2-Day Cycle)
+    └─ State machine: not_started → sells_executed → sells_confirmed → buys_executed → buys_confirmed → completed
+    └─ Progress bar visualization (Step 0-5)
+    └─ Day 1: Sell before 15:00 → confirm sell prices after 17:00
+    └─ Day 2: Cash deposited → execute buys → confirm buy prices after 17:00
+    └─ Warns "Do NOT buy yet" until cash deposit date
+    └─ Edit Sell Transactions expander (collapsed) for post-confirmation corrections
+    └─ Edit Buy Transactions expander (collapsed) for post-confirmation corrections
+    └─ Both edit forms update Transaction History directly
     └─ Stores workflow state in irp_tracker_data.json
     └─ Reset button to restart workflow
 
 12. USER TAKES ACTION
-    └─ Day T: Executes SELL orders, clicks "I've executed sells"
-    └─ Day T+2: Cash settles, executes BUY orders, clicks "I've executed buys"
-    └─ Records transaction
-    └─ Logs rebalancing history
+    └─ Day 1: Executes SELL orders (before 15:00), clicks "I've executed sells"
+    └─ Day 1 ~17:00: Enters sell execution prices, clicks "Confirm All Sell Prices"
+    └─ Day 2: Cash deposited, executes BUY orders, clicks "I've executed buys"
+    └─ Day 2 ~17:00: Enters buy execution prices, clicks "Confirm All Buy Prices"
+    └─ Clicks "Complete Rebalancing" to finish cycle
+    └─ All transactions recorded in Transaction History
 
 ═══════════════════════════════════════════════════════════════════════════════
 KEY CODE METRICS
@@ -414,8 +421,8 @@ Lines dedicated to rebalancing:
   ├─ Detection logic: ~40 lines (get_rebalancing_recommendations)
   ├─ AI integration: ~15 lines (get_ai_recommendations)
   ├─ Time-based: ~50 lines (check_time_based_rebalancing)
-  ├─ Settlement calc: ~60 lines (get_settlement_date in utils.py)
-  ├─ Workflow tracker: ~70 lines (rebalancing_workflow state machine)
+  ├─ Cash deposit calc: ~50 lines (get_settlement_date T+1 in utils.py)
+  ├─ Workflow tracker: ~200 lines (6-step state machine with edit expanders)
   ├─ History tracking: ~20 lines (record_rebalancing_action)
   ├─ UI display: ~100+ lines (page_rebalancing_alerts)
   └─ Total: ~370+ lines of rebalancing-specific code
@@ -432,8 +439,8 @@ FEATURES IMPLEMENTED:
   ✅ AI integration (smart recommendations)
   ✅ UI display (beautiful, interactive, width="stretch")
   ✅ Settings management (customizable)
-  ✅ T+2 settlement timeline (Korea biz days, excl. weekends + holidays)
-  ✅ Rebalancing workflow tracker (state machine with progress bar)
+  ✅ T+1 cash deposit timeline (Korea biz days, excl. weekends + holidays, 15:00 cutoff)
+  ✅ 2-day rebalancing workflow tracker (6-step state machine with edit expanders)
   ✅ Data-driven allocation targets (loaded from JSON at startup)
   ✅ Export for AI Review (portfolio snapshot with response format instructions)
   ✅ Import AI Review (parse .md files, apply allocation changes)
