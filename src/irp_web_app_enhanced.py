@@ -2134,21 +2134,27 @@ def page_rebalancing_alerts():
                         buy_tx_ids = []
                         for planned in workflow.get('planned_buys', []):
                             asset_name = planned['asset']
-                            shares = planned.get('shares', 0)
-                            if asset_name == 'Cash' or shares == 0:
+                            planned_amount = planned.get('amount', 0)
+                            if asset_name == 'Cash' or planned_amount == 0:
                                 continue
                             tx = add_transaction(
                                 asset=asset_name,
                                 trans_type='buy',
                                 date_str=buy_today,
-                                shares=shares,
+                                shares=0,
                                 price_per_share=0,
-                                notes="Rebalancing buy (pending confirmation)",
+                                notes=f"Rebalancing buy ₩{int(planned_amount):,} (pending confirmation)",
                                 batch_id=buy_batch_id,
                                 status='pending'
                             )
                             buy_tx_ids.append(tx['id'])
+                        # Store planned amounts and update workflow in one save
                         data = load_data()
+                        amount_map = {p['asset']: int(p.get('amount', 0))
+                                      for p in workflow.get('planned_buys', [])}
+                        for t in data.get('transactions', []):
+                            if t['id'] in buy_tx_ids:
+                                t['planned_amount'] = amount_map.get(t['asset'], 0)
                         data['rebalancing_workflow']['status'] = 'buys_executed'
                         data['rebalancing_workflow']['buy_date'] = datetime.now().isoformat()
                         data['rebalancing_workflow']['buy_batch_id'] = buy_batch_id
@@ -2161,19 +2167,21 @@ def page_rebalancing_alerts():
                 pending_buys = get_pending_transactions(buy_batch) if buy_batch else []
 
                 if pending_buys:
-                    st.write("⏳ **Status**: Buy orders placed — enter broker execution prices")
+                    st.write("⏳ **Status**: Buy orders placed — enter actual values from broker report (~17:00)")
                     st.caption(f"Batch: `{buy_batch}`")
                     with st.form("confirm_buy_prices"):
-                        st.write("📋 Enter the **actual buy price per share** from your broker report (adjust shares if needed):")
+                        st.write("📋 Enter the **amount ordered**, **actual price per share**, and **shares bought** from your broker report:")
                         # Header row
-                        hcol1, hcol2, hcol3, hcol4 = st.columns([3, 2, 2, 2])
+                        hcol1, hcol2, hcol3, hcol4, hcol5 = st.columns([3, 2, 2, 2, 2])
                         with hcol1:
                             st.markdown("**Asset**")
                         with hcol2:
-                            st.markdown("**Shares Bought**")
+                            st.markdown("**Amount (KRW)**")
                         with hcol3:
                             st.markdown("**Price per Share**")
                         with hcol4:
+                            st.markdown("**Shares Bought**")
+                        with hcol5:
                             st.markdown("**Ref. Market Price**")
                         st.divider()
                         buy_inputs = {}
@@ -2182,17 +2190,19 @@ def page_rebalancing_alerts():
                             etf_code = ETF_CONFIG.get(tx['asset'], {}).get('code', '')
                             label = f"{tx['asset']} [{etf_code}]" if etf_code else tx['asset']
                             market_price = prices.get(tx['asset'], {}).get('price', 0)
-                            rcol1, rcol2, rcol3, rcol4 = st.columns([3, 2, 2, 2])
+                            planned_amt = tx.get('planned_amount', 0)
+                            rcol1, rcol2, rcol3, rcol4, rcol5 = st.columns([3, 2, 2, 2, 2])
                             with rcol1:
                                 st.write(label)
                             with rcol2:
-                                shares_val = st.number_input(
-                                    f"shares_{tx['asset']}",
+                                amount_val = st.number_input(
+                                    f"amount_{tx['asset']}",
                                     min_value=0,
-                                    value=tx['shares'],
-                                    step=1,
-                                    key=f"buy_shares_{tx['id']}",
-                                    label_visibility="collapsed"
+                                    value=planned_amt,
+                                    step=10000,
+                                    key=f"buy_amount_{tx['id']}",
+                                    label_visibility="collapsed",
+                                    help=f"Planned: ₩{planned_amt:,}"
                                 )
                             with rcol3:
                                 price_val = st.number_input(
@@ -2205,14 +2215,31 @@ def page_rebalancing_alerts():
                                     help="Enter broker execution price"
                                 )
                             with rcol4:
+                                shares_val = st.number_input(
+                                    f"shares_{tx['asset']}",
+                                    min_value=0,
+                                    value=0,
+                                    step=1,
+                                    key=f"buy_shares_{tx['id']}",
+                                    label_visibility="collapsed",
+                                    help="Shares bought from broker report"
+                                )
+                            with rcol5:
                                 st.write(f"₩{market_price:,.0f}")
-                            buy_inputs[tx['id']] = {'shares': shares_val, 'price_per_share': price_val}
+                            buy_inputs[tx['id']] = {
+                                'shares': shares_val,
+                                'price_per_share': price_val,
+                                'amount': amount_val,
+                            }
                             buy_preview.append({'asset': tx['asset'], 'shares': shares_val,
                                                 'market_price': market_price, 'tx_id': tx['id']})
                         if st.form_submit_button("✅ Confirm All Buy Prices", type="primary"):
-                            all_filled = all(v['price_per_share'] > 0 for v in buy_inputs.values())
+                            all_filled = all(
+                                v['price_per_share'] > 0 and v['shares'] > 0
+                                for v in buy_inputs.values()
+                            )
                             if not all_filled:
-                                st.error("모든 가격을 입력해주세요 (All prices must be > 0)")
+                                st.error("모든 가격과 수량을 입력해주세요 (All prices and shares must be > 0)")
                             else:
                                 # Validate prices are within reasonable range of market
                                 warnings = []
@@ -2259,15 +2286,17 @@ def page_rebalancing_alerts():
                     if confirmed_buys:
                         with st.expander("✏️ Edit Buy Transactions (correction)", expanded=False):
                             with st.form("edit_buy_prices"):
-                                st.write("📋 Correct **shares bought** and/or **price per share** from your broker report:")
-                                hcol1, hcol2, hcol3, hcol4 = st.columns([3, 2, 2, 2])
+                                st.write("📋 Correct **amount**, **price per share**, and/or **shares bought** from your broker report:")
+                                hcol1, hcol2, hcol3, hcol4, hcol5 = st.columns([3, 2, 2, 2, 2])
                                 with hcol1:
                                     st.markdown("**Asset**")
                                 with hcol2:
-                                    st.markdown("**Shares Bought**")
+                                    st.markdown("**Amount (KRW)**")
                                 with hcol3:
                                     st.markdown("**Price per Share**")
                                 with hcol4:
+                                    st.markdown("**Shares Bought**")
+                                with hcol5:
                                     st.markdown("**Ref. Market Price**")
                                 st.divider()
                                 edit_buy_inputs = {}
@@ -2276,18 +2305,19 @@ def page_rebalancing_alerts():
                                     label = f"{tx['asset']} [{etf_code}]" if etf_code else tx['asset']
                                     market_price = prices.get(tx['asset'], {}).get('price', 0)
                                     stored_price = int(tx['price_per_share'])
-                                    rcol1, rcol2, rcol3, rcol4 = st.columns([3, 2, 2, 2])
+                                    stored_amount = int(tx.get('total_cost', tx['shares'] * stored_price))
+                                    rcol1, rcol2, rcol3, rcol4, rcol5 = st.columns([3, 2, 2, 2, 2])
                                     with rcol1:
                                         st.write(label)
                                     with rcol2:
-                                        shares_val = st.number_input(
-                                            f"shares_{tx['asset']}",
+                                        amount_val = st.number_input(
+                                            f"amount_{tx['asset']}",
                                             min_value=0,
-                                            value=tx['shares'],
-                                            step=1,
-                                            key=f"edit_buy_shares_{tx['id']}",
+                                            value=stored_amount,
+                                            step=10000,
+                                            key=f"edit_buy_amount_{tx['id']}",
                                             label_visibility="collapsed",
-                                            help="Adjust if actual shares differs"
+                                            help="Total amount ordered"
                                         )
                                     with rcol3:
                                         price_val = st.number_input(
@@ -2300,6 +2330,16 @@ def page_rebalancing_alerts():
                                             help="Enter broker execution price"
                                         )
                                     with rcol4:
+                                        shares_val = st.number_input(
+                                            f"shares_{tx['asset']}",
+                                            min_value=0,
+                                            value=tx['shares'],
+                                            step=1,
+                                            key=f"edit_buy_shares_{tx['id']}",
+                                            label_visibility="collapsed",
+                                            help="Adjust if actual shares differs"
+                                        )
+                                    with rcol5:
                                         st.write(f"₩{market_price:,.0f}")
                                     edit_buy_inputs[tx['id']] = {'shares': shares_val, 'price_per_share': price_val}
                                 if st.form_submit_button("💾 Update Buy Transactions"):
