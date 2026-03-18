@@ -1769,13 +1769,14 @@ def page_rebalancing_alerts():
     settle_date_str = settlement['settlement_date'].strftime('%Y-%m-%d (%a)')
 
     st.info(f"""
-    📅 **매도 → 입금 타임라인 (Sell → Cash Deposit)**
+    📅 **리밸런싱 타임라인 (2-Day Rebalancing)**
 
     | Step | Date / Time | Action |
     |------|-------------|--------|
-    | **1. 매도 주문** | {trade_date_str} before 15:00 | Execute SELL orders on Samsung Fund |
-    | **2. 체결가 확인** | {trade_date_str} ~17:00 | Broker confirms execution price |
-    | **3. 입금 (T+2)** | {settle_date_str} | Cash deposited → Execute BUY orders |
+    | **1. 매도 주문** | {trade_date_str} before 15:00 | Execute SELL orders |
+    | **2. 매도 체결가 확인** | {trade_date_str} ~17:00 | Broker confirms sell execution price |
+    | **3. 입금 + 매수 주문** | {settle_date_str} (next business day) | Cash deposited → Execute BUY orders |
+    | **4. 매수 체결가 확인** | {settle_date_str} ~17:00 | Broker confirms buy execution price |
 
     {settlement['description']}
     """)
@@ -1868,15 +1869,15 @@ def page_rebalancing_alerts():
                      delta=f"{net/1_000_000:+.1f}M" if net != 0 else "0")
         
         st.info(f"""
-        **실행 순서 (Execution Order):**
-        1. 📉 **{trade_date_str} (15:00 전)** — SELL overweight assets
-        2. 💲 **{trade_date_str} ~17:00** — Confirm sell execution prices from broker
-        3. ⏳ **Wait for cash deposit** — 2 business days ({settle_date_str})
-        4. 📈 **{settle_date_str}** — BUY underweight assets (recalculate shares at current prices!)
-        5. ✅ **After buys** — Record rebalancing below
+        **실행 순서 (Execution Order — 2 Days):**
+        1. 📉 **Day 1: {trade_date_str} (15:00 전)** — SELL overweight assets
+        2. 💲 **Day 1: {trade_date_str} ~17:00** — Confirm sell execution prices from broker
+        3. 📈 **Day 2: {settle_date_str}** — Cash deposited → BUY underweight assets
+        4. 💲 **Day 2: {settle_date_str} ~17:00** — Confirm buy execution prices from broker
+        5. ✅ **After confirming buys** — Record rebalancing below
 
         ⚠️ **Important**: Recalculate buy-side share counts on {settle_date_str} using live prices,
-        as prices may have changed during the deposit waiting period.
+        as prices change overnight.
         """)
         
         # ═══════════════════════════════════════════════════════════════════════
@@ -2119,14 +2120,14 @@ def page_rebalancing_alerts():
                     sell_label += f" (체결일: {effective_date})"
 
                 if days_left > 0:
-                    st.write("⏳ **Status**: Sells confirmed. Waiting for cash deposit")
+                    st.write("⏳ **Status**: Sells confirmed. Waiting for cash deposit (next business day)")
                     st.write(f"Sold on: {sell_label}")
-                    st.write(f"Cash deposits: **{target_settle}** ({days_left} business day(s) remaining)")
+                    st.write(f"Cash deposit + BUY: **{target_settle}** ({days_left} day(s) remaining)")
                     st.warning("💡 Do NOT execute buy orders yet — cash has not been deposited.")
                 else:
                     st.write(f"✅ **Status**: Cash deposited! Ready to buy.")
-                    st.write(f"Sold on: {sell_label} → Deposited: **{target_settle}**")
-                    st.success("💰 Cash is available. Execute BUY orders now with current prices.")
+                    st.write(f"Sold on: {sell_label} → Buy on: **{target_settle}**")
+                    st.success("💰 Cash is available. Execute BUY orders now — confirm prices after 17:00.")
                     if st.button("📈 I've executed the BUY orders", key="wf_buy_done", type="primary"):
                         buy_batch_id = generate_batch_id("RB")
                         buy_today = datetime.now(KR_TZ).strftime("%Y-%m-%d")

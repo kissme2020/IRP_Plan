@@ -117,11 +117,13 @@ KR_HOLIDAYS = holidays.KR()
 
 
 def get_settlement_date(trade_date=None):
-    """Calculate T+2 settlement date excluding weekends and Korean holidays.
-    
+    """Calculate cash deposit date (T+1 business day) excluding weekends and Korean holidays.
+
+    Cash from sell orders is deposited the next business day, enabling buy orders on that day.
+
     Args:
         trade_date: date or datetime object. Defaults to today (Korea time).
-    
+
     Returns:
         dict with settlement_date, trade_date, business_days_away, and description.
     """
@@ -130,15 +132,7 @@ def get_settlement_date(trade_date=None):
     elif isinstance(trade_date, datetime):
         trade_date = trade_date.date()
 
-    business_days = 0
-    current = trade_date
-    while business_days < 2:
-        current += timedelta(days=1)
-        if current.weekday() < 5 and current not in KR_HOLIDAYS:
-            business_days += 1
-
-    # Check if settlement day itself is a holiday (shouldn't be, but safety check)
-    settle_date = current
+    settle_date = next_kr_business_day(trade_date)
 
     # Build description
     cal_days = (settle_date - trade_date).days
@@ -149,10 +143,9 @@ def get_settlement_date(trade_date=None):
             holiday_names.append(f"{check.strftime('%m/%d')} {KR_HOLIDAYS.get(check)}")
         check += timedelta(days=1)
 
-    desc_parts = [f"T+2 business days = {cal_days} calendar days"]
-    if cal_days > 2:
+    desc_parts = [f"T+1 business day = {cal_days} calendar day(s)"]
+    if cal_days > 1:
         reasons = []
-        # Count weekends
         d = trade_date
         weekends = 0
         while d <= settle_date:
@@ -169,7 +162,7 @@ def get_settlement_date(trade_date=None):
     return {
         "trade_date": trade_date,
         "settlement_date": settle_date,
-        "business_days": 2,
+        "business_days": 1,
         "calendar_days": cal_days,
         "description": " — ".join(desc_parts),
         "holidays_in_range": holiday_names,
