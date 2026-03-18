@@ -4036,17 +4036,37 @@ def page_rsu_tracking():
                                       placeholder="e.g., Sold immediately, deployed to bonds")
 
             if st.button("✅ Mark as Vested", type="primary"):
+                vest_date_str = datetime.now().strftime('%Y-%m-%d')
+                shares = sel_r.get('shares', 0)
+                gross_usd = shares * vest_price_input
+                net_krw = gross_usd * exchange_rate * after_tax_pct
+                note_text = (
+                    f"RSU Tranche #{sel_num}: {shares} shares @ ${vest_price_input:,.2f} "
+                    f"= ${gross_usd:,.0f} → ₩{net_krw:,.0f} after tax"
+                )
+                if vest_notes:
+                    note_text += f" | {vest_notes}"
+                # Record as contribution in Transaction History
+                tx = add_transaction(
+                    asset='Cash',
+                    trans_type='contribution',
+                    date_str=vest_date_str,
+                    shares=0,
+                    price_per_share=int(net_krw),
+                    notes=note_text
+                )
                 for r in rsu_list:
                     if r['tranche'] == sel_num:
                         r['vested'] = True
                         r['vest_price_usd'] = vest_price_input
-                        r['vested_date'] = datetime.now().strftime('%Y-%m-%d')
+                        r['vested_date'] = vest_date_str
+                        r['transaction_id'] = tx['id']
                         if vest_notes:
                             r['notes'] = vest_notes
                         break
                 data['rsu_vesting'] = rsu_list
                 save_data(data)
-                st.success(f"✅ Tranche #{sel_num} vested at ${vest_price_input:,.2f}/share!")
+                st.success(f"✅ Tranche #{sel_num} vested at ${vest_price_input:,.2f}/share → ₩{net_krw:,.0f} recorded in Transaction History")
                 st.rerun()
         else:
             st.success("🎉 All RSU tranches have been vested!")
@@ -4058,15 +4078,22 @@ def page_rsu_tracking():
             selected_undo = st.selectbox("Select tranche to undo", options=list(undo_options.keys()), key="rsu_undo_select")
             if st.button("↩️ Mark as Unvested"):
                 tranche_num = undo_options[selected_undo]
+                tx_id = None
                 for r in rsu_list:
                     if r['tranche'] == tranche_num:
+                        tx_id = r.pop('transaction_id', None)
                         r['vested'] = False
                         r['vest_price_usd'] = None
                         r.pop('vested_date', None)
                         break
+                if tx_id:
+                    delete_transaction(tx_id)
                 data['rsu_vesting'] = rsu_list
                 save_data(data)
-                st.success(f"↩️ Tranche #{tranche_num} marked as unvested.")
+                msg = f"↩️ Tranche #{tranche_num} marked as unvested."
+                if tx_id:
+                    msg += " Transaction removed from history."
+                st.success(msg)
                 st.rerun()
 
     # --- Tab 3: Add New Tranche ---
