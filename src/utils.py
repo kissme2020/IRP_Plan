@@ -176,6 +176,14 @@ def get_settlement_date(trade_date=None):
     }
 
 
+def next_kr_business_day(from_date: date) -> date:
+    """Return the next Korean business day after from_date (skips weekends and holidays)."""
+    d = from_date + timedelta(days=1)
+    while d.weekday() >= 5 or d in KR_HOLIDAYS:
+        d += timedelta(days=1)
+    return d
+
+
 def format_date(date_str: str, format_out: str = "%Y년 %m월 %d일") -> str:
     """Format date string to Korean format"""
     try:

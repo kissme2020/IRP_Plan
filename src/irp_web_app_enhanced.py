@@ -22,7 +22,7 @@ import requests
 from functools import lru_cache
 from utils import (
     krw_to_shares, generate_portfolio_snapshot, parse_ai_review_md,
-    get_settlement_date, KR_TZ,
+    get_settlement_date, next_kr_business_day, KR_TZ,
     generate_persona_export, parse_persona_review_md,
     detect_review_format, persona_review_to_standard, normalize_asset_name,
     is_claude_cli_available, run_claude_cli, save_review_md,
@@ -1756,20 +1756,31 @@ def page_rebalancing_alerts():
     st.header("💰 Section 3: Recommended Rebalancing Trades")
     
     # Settlement date info (T+2 Korea business days)
-    settlement = get_settlement_date()
+    now_kr = datetime.now(KR_TZ)
+    # If after 15:00, effective trade date is next business day
+    if now_kr.hour >= 15:
+        effective_trade_date = next_kr_business_day(now_kr.date())
+        after_cutoff = True
+    else:
+        effective_trade_date = now_kr.date()
+        after_cutoff = False
+    settlement = get_settlement_date(effective_trade_date)
     trade_date_str = settlement['trade_date'].strftime('%Y-%m-%d (%a)')
     settle_date_str = settlement['settlement_date'].strftime('%Y-%m-%d (%a)')
-    
+
     st.info(f"""
-    📅 **Settlement Timeline (T+2 Korea Business Days)**
-    
-    | Step | Date | Action |
-    |------|------|--------|
-    | **Trade Day (T)** | {trade_date_str} | Execute SELL orders on Samsung Fund |
-    | **Settlement (T+2)** | {settle_date_str} | Cash available → Execute BUY orders |
-    
+    📅 **매도 → 입금 타임라인 (Sell → Cash Deposit)**
+
+    | Step | Date / Time | Action |
+    |------|-------------|--------|
+    | **1. 매도 주문** | {trade_date_str} before 15:00 | Execute SELL orders on Samsung Fund |
+    | **2. 체결가 확인** | {trade_date_str} ~17:00 | Broker confirms execution price |
+    | **3. 입금 (T+2)** | {settle_date_str} | Cash deposited → Execute BUY orders |
+
     {settlement['description']}
     """)
+    if after_cutoff:
+        st.warning(f"⚠️ 현재 15:00 이후 — 매도 주문 시 체결일은 다음 영업일 ({trade_date_str}) 입니다.")
     if settlement.get('holidays_in_range'):
         st.caption(f"🇰🇷 Korean holidays in range: {', '.join(settlement['holidays_in_range'])}")
     
@@ -1857,14 +1868,15 @@ def page_rebalancing_alerts():
                      delta=f"{net/1_000_000:+.1f}M" if net != 0 else "0")
         
         st.info(f"""
-        **Execution Order (T+2 Settlement):**
-        1. 📉 **{trade_date_str}** — SELL overweight assets (generates pending cash)
-        2. ⏳ **Wait for settlement** — Cash arrives {settle_date_str}
-        3. 📈 **{settle_date_str}** — BUY underweight assets (recalculate shares at current prices!)
-        4. ✅ **After buys** — Record rebalancing below
-        
-        ⚠️ **Important**: Recalculate buy-side share counts on {settle_date_str} using live prices, 
-        as prices may have changed during the settlement window.
+        **실행 순서 (Execution Order):**
+        1. 📉 **{trade_date_str} (15:00 전)** — SELL overweight assets
+        2. 💲 **{trade_date_str} ~17:00** — Confirm sell execution prices from broker
+        3. ⏳ **Wait for cash deposit** — 2 business days ({settle_date_str})
+        4. 📈 **{settle_date_str}** — BUY underweight assets (recalculate shares at current prices!)
+        5. ✅ **After buys** — Record rebalancing below
+
+        ⚠️ **Important**: Recalculate buy-side share counts on {settle_date_str} using live prices,
+        as prices may have changed during the deposit waiting period.
         """)
         
         # ═══════════════════════════════════════════════════════════════════════
@@ -1892,8 +1904,15 @@ def page_rebalancing_alerts():
             if wf_status == 'not_started':
                 st.write("🔵 **Status**: Ready to start rebalancing")
                 if st.button("📉 I've executed the SELL orders", key="wf_sell_done", type="primary"):
+                    sell_now = datetime.now(KR_TZ)
                     batch_id = generate_batch_id("RB")
-                    today_str = datetime.now(KR_TZ).strftime("%Y-%m-%d")
+                    today_str = sell_now.strftime("%Y-%m-%d")
+                    # Determine effective trade date: if after 15:00, sell executes next business day
+                    if sell_now.hour >= 15:
+                        effective_sell_date = next_kr_business_day(sell_now.date())
+                    else:
+                        effective_sell_date = sell_now.date()
+                    sell_settlement = get_settlement_date(effective_sell_date)
                     sell_tx_ids = []
                     for t in trades_sell:
                         asset_name = t['_asset_name']
@@ -1914,8 +1933,10 @@ def page_rebalancing_alerts():
                     data = load_data()
                     data['rebalancing_workflow'] = {
                         'status': 'sells_executed',
-                        'sell_date': datetime.now().isoformat(),
-                        'settlement_date': settlement['settlement_date'].isoformat(),
+                        'sell_date': sell_now.isoformat(),
+                        'sell_time': sell_now.strftime('%H:%M'),
+                        'effective_sell_date': effective_sell_date.isoformat(),
+                        'settlement_date': sell_settlement['settlement_date'].isoformat(),
                         'sells_total': total_sell,
                         'sell_batch_id': batch_id,
                         'sell_tx_ids': sell_tx_ids,
@@ -1924,6 +1945,8 @@ def page_rebalancing_alerts():
                                          if t['_asset_name'] != 'Cash' and t['_shares'] > 0],
                     }
                     save_data(data)
+                    if sell_now.hour >= 15:
+                        st.warning(f"⚠️ 15:00 이후 매도 주문 — 실제 체결일은 다음 영업일 ({effective_sell_date}) 입니다.")
                     st.rerun()
 
             elif wf_status == 'sells_executed':
@@ -2089,14 +2112,20 @@ def page_rebalancing_alerts():
                                     st.success("✅ Sell transactions updated!")
                                     st.rerun()
 
+                sell_time = workflow.get('sell_time', '')
+                effective_date = workflow.get('effective_sell_date', sell_date)
+                sell_label = f"**{sell_date} at {sell_time} KST**" if sell_time else f"**{sell_date}**"
+                if effective_date != sell_date:
+                    sell_label += f" (체결일: {effective_date})"
+
                 if days_left > 0:
-                    st.write("⏳ **Status**: Sells confirmed. Waiting for settlement")
-                    st.write(f"Sold on: **{sell_date}**")
-                    st.write(f"Cash settles: **{target_settle}** ({days_left} day(s) remaining)")
-                    st.warning("💡 Do NOT execute buy orders yet — cash has not settled.")
+                    st.write("⏳ **Status**: Sells confirmed. Waiting for cash deposit")
+                    st.write(f"Sold on: {sell_label}")
+                    st.write(f"Cash deposits: **{target_settle}** ({days_left} business day(s) remaining)")
+                    st.warning("💡 Do NOT execute buy orders yet — cash has not been deposited.")
                 else:
-                    st.write(f"✅ **Status**: Cash has settled! Ready to buy.")
-                    st.write(f"Sold on: **{sell_date}** → Settled: **{target_settle}**")
+                    st.write(f"✅ **Status**: Cash deposited! Ready to buy.")
+                    st.write(f"Sold on: {sell_label} → Deposited: **{target_settle}**")
                     st.success("💰 Cash is available. Execute BUY orders now with current prices.")
                     if st.button("📈 I've executed the BUY orders", key="wf_buy_done", type="primary"):
                         buy_batch_id = generate_batch_id("RB")
@@ -2236,13 +2265,19 @@ def page_rebalancing_alerts():
             if wf_status != 'not_started':
                 st.write("**Workflow Summary:**")
                 if workflow.get('sell_date'):
-                    st.write(f"📉 Sells: {workflow['sell_date'][:10]}")
+                    sell_disp = workflow['sell_date'][:10]
+                    sell_time_disp = workflow.get('sell_time', '')
+                    eff_date_disp = workflow.get('effective_sell_date', sell_disp)
+                    time_str = f" {sell_time_disp}" if sell_time_disp else ""
+                    st.write(f"📉 Sells: {sell_disp}{time_str} KST")
+                    if eff_date_disp != sell_disp:
+                        st.caption(f"체결일: {eff_date_disp} (15:00 이후 매도)")
                 if workflow.get('sell_batch_id'):
                     st.caption(f"Sell Batch: `{workflow['sell_batch_id']}`")
                 if workflow.get('sells_confirmed_at'):
                     st.write(f"✅ Sells Confirmed: {workflow['sells_confirmed_at'][:10]}")
                 if workflow.get('settlement_date'):
-                    st.write(f"💰 Settlement: {workflow['settlement_date'][:10]}")
+                    st.write(f"💰 Cash Deposit: {workflow['settlement_date'][:10]}")
                 if workflow.get('buy_date'):
                     st.write(f"📈 Buys: {workflow['buy_date'][:10]}")
                 if workflow.get('buy_batch_id'):
