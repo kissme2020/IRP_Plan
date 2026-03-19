@@ -91,8 +91,9 @@ Day 3 (Wed) — BUY
          → Transactions updated: pending → completed
          → Workflow status: buys_confirmed (NEW sub-status)
   17:10  User clicks "Complete Rebalancing"
-         → Holdings updated, rebalance_history recorded
-         → Workflow reset to not_started
+         → ETF shares auto-updated from confirmed transactions (Cash excluded)
+         → shares_applied flag set to prevent double-application
+         → Workflow status: completed
 ```
 
 ---
@@ -118,7 +119,7 @@ Day 3 (Wed) — BUY
 - [x] **3.1** Modify BUY button handler — create pending buy transactions from `planned_buys`
 - [x] **3.2** Add "Confirm Buy Prices" form — editable shares + price inputs
 - [x] **3.3** Add `buys_confirmed` sub-status + "Complete Rebalancing" button
-- [ ] **3.4** Wire "Complete Rebalancing" to update holdings using confirmed transaction data (future enhancement)
+- [x] **3.4** Wire "Complete Rebalancing" to auto-update `data['shares']` for ETFs from confirmed sell/buy transactions (Cash excluded — managed via Track Deposits). Retroactive "Apply Transactions to Holdings Now" button for workflows completed before this fix. `shares_applied` flag prevents double-application.
 
 ### Phase 4: Transaction History Display Updates ✅
 - [x] **4.1** Update Transaction History table — Status badge (⏳/✅), Batch column, "—" for pending prices

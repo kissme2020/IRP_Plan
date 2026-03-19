@@ -2351,16 +2351,71 @@ def page_rebalancing_alerts():
                                     st.success("✅ Buy transactions updated!")
                                     st.rerun()
 
-                st.write("Update your holdings below to complete the rebalancing.")
+                st.write("ETF holdings will be auto-updated from confirmed transactions. Update Cash via Track Deposits.")
                 if st.button("🏁 Complete Rebalancing", key="wf_complete", type="primary"):
                     data = load_data()
+                    current_shares = data.get('shares', get_default_holdings())
+
+                    # Apply confirmed SELL transactions → subtract shares (ETFs only)
+                    sell_batch = workflow.get('sell_batch_id', '')
+                    if sell_batch:
+                        for t in data.get('transactions', []):
+                            if (t.get('batch_id') == sell_batch
+                                    and t.get('status') == 'completed'
+                                    and t.get('type') == 'sell'
+                                    and t['asset'] != 'Cash'):
+                                current_shares[t['asset']] = current_shares.get(t['asset'], 0) - t['shares']
+
+                    # Apply confirmed BUY transactions → add shares (ETFs only)
+                    buy_batch = workflow.get('buy_batch_id', '')
+                    if buy_batch:
+                        for t in data.get('transactions', []):
+                            if (t.get('batch_id') == buy_batch
+                                    and t.get('status') == 'completed'
+                                    and t.get('type') == 'buy'
+                                    and t['asset'] != 'Cash'):
+                                current_shares[t['asset']] = current_shares.get(t['asset'], 0) + t['shares']
+
+                    data['shares'] = current_shares
+                    data['holdings_updated'] = datetime.now().isoformat()
                     data['rebalancing_workflow']['status'] = 'completed'
                     data['rebalancing_workflow']['completed_at'] = datetime.now().isoformat()
+                    data['rebalancing_workflow']['shares_applied'] = True
                     save_data(data)
+                    st.success("✅ ETF holdings updated from confirmed transactions!")
                     st.rerun()
 
             elif wf_status == 'completed':
                 st.write("🎉 **Status**: Rebalancing completed!")
+                # If shares were not applied (completed before the auto-update fix),
+                # offer a one-time button to apply confirmed transactions to holdings
+                if not workflow.get('shares_applied'):
+                    st.warning("⚠️ ETF holdings were not updated from this rebalancing cycle.")
+                    if st.button("🔄 Apply Transactions to Holdings Now", key="wf_apply_shares", type="primary"):
+                        data = load_data()
+                        current_shares = data.get('shares', get_default_holdings())
+                        sell_batch = workflow.get('sell_batch_id', '')
+                        if sell_batch:
+                            for t in data.get('transactions', []):
+                                if (t.get('batch_id') == sell_batch
+                                        and t.get('status') == 'completed'
+                                        and t.get('type') == 'sell'
+                                        and t['asset'] != 'Cash'):
+                                    current_shares[t['asset']] = current_shares.get(t['asset'], 0) - t['shares']
+                        buy_batch = workflow.get('buy_batch_id', '')
+                        if buy_batch:
+                            for t in data.get('transactions', []):
+                                if (t.get('batch_id') == buy_batch
+                                        and t.get('status') == 'completed'
+                                        and t.get('type') == 'buy'
+                                        and t['asset'] != 'Cash'):
+                                    current_shares[t['asset']] = current_shares.get(t['asset'], 0) + t['shares']
+                        data['shares'] = current_shares
+                        data['holdings_updated'] = datetime.now().isoformat()
+                        data['rebalancing_workflow']['shares_applied'] = True
+                        save_data(data)
+                        st.success("✅ ETF holdings updated from confirmed transactions!")
+                        st.rerun()
                 st.write("You can reset the workflow to start a new cycle.")
 
         with wf_col2:

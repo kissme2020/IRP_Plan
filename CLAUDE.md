@@ -69,7 +69,7 @@ Three-persona mode uses Cathie Wood, Peter Lynch, and Ray Dalio personas with sy
 
 - **Currency:** All amounts in KRW. `format_currency()` for display. RSU values converted via `convert_usd_to_krw()`.
 - **Settlement:** 2-day rebalancing cycle. Day 1: sell before 15:00 KST, broker confirms price ~17:00. Day 2 (next business day): cash deposited, execute buy orders, broker confirms buy price ~17:00. Weekends/Korean holidays skipped via `holidays` library. If sell placed after 15:00, effective trade date shifts to next business day (`next_kr_business_day()`).
-- **Rebalancing:** Drift threshold >5% triggers alerts with specific share counts (floor for sell, ceil for buy). Workflow tracker gates BUY step until cash deposit date (sell date + T+1 business day) has passed. Stores `sell_time`, `effective_sell_date`, and `settlement_date` per cycle.
+- **Rebalancing:** Drift threshold >5% triggers alerts with specific share counts (floor for sell, ceil for buy). Workflow tracker gates BUY step until cash deposit date (sell date + T+1 business day) has passed. Stores `sell_time`, `effective_sell_date`, and `settlement_date` per cycle. On "Complete Rebalancing", confirmed sell/buy transactions auto-update `data['shares']` for ETFs (subtract sold, add bought). Cash is excluded — managed separately via Track Deposits. A `shares_applied` flag prevents double-application.
 - **Encoding:** Subprocess calls to Claude CLI must use `encoding="utf-8"` (Korean text on Windows).
 - **Claude CLI detection:** `_find_claude_exe()` checks `shutil.which` then known install paths (`~/.local/bin/`, `AppData/Roaming/npm/`) since Streamlit may not inherit the full user PATH.
 
