@@ -128,11 +128,24 @@ Day 3 (Wed) — BUY
 - [ ] **4.4** Add batch grouping header rows in Transaction History (future enhancement)
 - [ ] **4.5** Add filter option for pending transactions (future enhancement)
 
-### Phase 5: Edge Cases & Polish (Future)
-- [ ] **5.1** Handle partial confirmation — individual row save buttons alongside "Confirm All"
-- [ ] **5.2** Validate price inputs — reasonable range based on recent market prices
-- [ ] **5.3** Update `generate_portfolio_snapshot()` — include pending transaction info if mid-workflow
-- [ ] **5.4** Test backward compatibility — existing transactions without new fields
+### Phase 5: Backup & Restore ✅
+- [x] **5.0** Auto-backup on every `save_data()` — timestamped files in `data/backups/`, last 10 kept
+- [x] **5.1** Manual backup with custom label via sidebar UI
+- [x] **5.2** Restore from backup — validates JSON, creates safety `pre_restore` backup first
+- [x] **5.3** `.gitignore` updated to exclude `data/backups/`
+
+### Phase 6: Structural Cleanup (Future)
+- [ ] **6.1** Remove zombie fields: `data['holdings']`, `data['holdings_values']` — make `data['shares']` the single source of truth for portfolio quantities
+- [ ] **6.2** Remove dead functions: `save_holdings()`, `save_holdings_values()`, `get_holdings()`, `get_default_holdings_values()`
+- [ ] **6.3** Remove Section 4 (manual holdings form) — redundant now that "Complete Rebalancing" auto-updates shares
+- [ ] **6.4** Fix `record_rebalance()` — compute portfolio value from `shares × prices` instead of stale `data['holdings']`
+- [ ] **6.5** Consolidate fallback prices — `get_fallback_prices()` and `get_default_holdings()` estimated prices should use same values
+- [ ] **6.6** Evaluate removing or consolidating `src/data_handler.py` (largely superseded by inline `load_data()`/`save_data()`)
+
+### Phase 7: Edge Cases & Polish (Future)
+- [ ] **7.1** Handle partial confirmation — individual row save buttons alongside "Confirm All"
+- [ ] **7.2** Update `generate_portfolio_snapshot()` — include pending transaction info if mid-workflow
+- [ ] **7.3** Test backward compatibility — existing transactions without new fields
 
 ---
 

@@ -19,6 +19,8 @@ import os
 from datetime import datetime, timedelta, date
 import numpy as np
 import requests
+import shutil
+import glob as glob_module
 from functools import lru_cache
 from utils import (
     krw_to_shares, generate_portfolio_snapshot, parse_ai_review_md,
@@ -565,10 +567,98 @@ def get_holdings():
     return data.get('holdings', get_default_holdings())
 
 def save_data(data):
-    """Save data to JSON file"""
+    """Save data to JSON file with automatic backup."""
     data_file = get_data_file()
+    # Auto-backup before overwriting (keep last 10)
+    if os.path.exists(data_file):
+        _auto_backup(data_file)
     with open(data_file, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, default=str, ensure_ascii=False)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# BACKUP & RESTORE
+# ═══════════════════════════════════════════════════════════════════════════════
+
+BACKUP_DIR_NAME = "backups"
+AUTO_BACKUP_LIMIT = 10
+
+
+def _get_backup_dir() -> str:
+    """Get backup directory path, creating it if needed."""
+    from pathlib import Path
+    backup_dir = Path(__file__).parent.parent / "data" / BACKUP_DIR_NAME
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    return str(backup_dir)
+
+
+def _auto_backup(data_file: str):
+    """Create timestamped auto-backup, pruning old ones beyond the limit."""
+    backup_dir = _get_backup_dir()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = os.path.join(backup_dir, f"auto_{timestamp}.json")
+    shutil.copy2(data_file, backup_path)
+    _prune_auto_backups(backup_dir)
+
+
+def _prune_auto_backups(backup_dir: str):
+    """Keep only the most recent AUTO_BACKUP_LIMIT auto-backups."""
+    pattern = os.path.join(backup_dir, "auto_*.json")
+    auto_files = sorted(glob_module.glob(pattern))
+    for old_file in auto_files[:-AUTO_BACKUP_LIMIT]:
+        os.remove(old_file)
+
+
+def create_manual_backup(label: str = "") -> str:
+    """Create a named manual backup. Returns the backup filename."""
+    data_file = get_data_file()
+    if not os.path.exists(data_file):
+        return ""
+    backup_dir = _get_backup_dir()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_label = label.replace(" ", "_")[:30] if label else "manual"
+    filename = f"{safe_label}_{timestamp}.json"
+    backup_path = os.path.join(backup_dir, filename)
+    shutil.copy2(data_file, backup_path)
+    return filename
+
+
+def list_backups() -> list[dict]:
+    """List all backups sorted newest first."""
+    backup_dir = _get_backup_dir()
+    pattern = os.path.join(backup_dir, "*.json")
+    files = sorted(glob_module.glob(pattern), reverse=True)
+    backups = []
+    for f in files:
+        fname = os.path.basename(f)
+        size_kb = os.path.getsize(f) / 1024
+        mtime = datetime.fromtimestamp(os.path.getmtime(f))
+        is_auto = fname.startswith("auto_")
+        backups.append({
+            'filename': fname,
+            'path': f,
+            'size_kb': size_kb,
+            'modified': mtime,
+            'type': 'Auto' if is_auto else 'Manual',
+        })
+    return backups
+
+
+def restore_backup(backup_path: str) -> bool:
+    """Restore data from a backup file. Creates a safety backup first."""
+    data_file = get_data_file()
+    if not os.path.exists(backup_path):
+        return False
+    # Validate backup is valid JSON before restoring
+    try:
+        with open(backup_path, 'r', encoding='utf-8') as f:
+            json.load(f)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return False
+    # Safety backup of current state before restoring
+    create_manual_backup("pre_restore")
+    shutil.copy2(backup_path, data_file)
+    return True
 
 
 def load_allocation_target():
@@ -4980,7 +5070,39 @@ def main():
     
     years, _, _ = calculate_time_remaining()
     st.sidebar.metric("Time Left", f"{years:.1f} years")
-    
+
+    # Backup & Restore
+    st.sidebar.divider()
+    with st.sidebar.expander("💾 Backup & Restore", expanded=False):
+        # Manual backup
+        backup_label = st.text_input("Backup label (optional)", key="backup_label",
+                                     placeholder="e.g., before_rebalancing")
+        if st.button("📦 Create Backup", key="btn_backup"):
+            fname = create_manual_backup(backup_label)
+            if fname:
+                st.success(f"✅ Saved: {fname}")
+            else:
+                st.error("No data file to back up.")
+
+        # List & Restore
+        backups = list_backups()
+        if backups:
+            st.caption(f"{len(backups)} backup(s) available")
+            backup_options = {
+                f"{b['type']} | {b['modified'].strftime('%Y-%m-%d %H:%M')} | {b['size_kb']:.0f}KB — {b['filename']}": b['path']
+                for b in backups[:20]
+            }
+            selected = st.selectbox("Select backup to restore", options=list(backup_options.keys()),
+                                    key="restore_select", label_visibility="collapsed")
+            if st.button("♻️ Restore Selected", key="btn_restore"):
+                if restore_backup(backup_options[selected]):
+                    st.success("✅ Restored! A safety backup was saved first.")
+                    st.rerun()
+                else:
+                    st.error("❌ Restore failed — backup file is invalid.")
+        else:
+            st.caption("No backups yet.")
+
     # Render selected page
     if page == "Market Dashboard":
         page_market_dashboard()

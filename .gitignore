@@ -33,6 +33,7 @@ wheels/
 
 # Data files (optional - uncomment if you don't want to track)
 # irp_tracker_data.json
+data/backups/
 
 # Environment variables
 .env

@@ -47,6 +47,7 @@ python -m py_compile src/data_handler.py
 - `data/irp_tracker_data.json` — Single source of truth. Holdings, transactions, deposits, RSU vesting, allocation targets/history, AI reviews. Auto-created with defaults on first run.
 - `data/etf_config.json` — ETF metadata (8 assets: ticker codes, names, types).
 - `data/IRP_AI_Review_*.md` — Saved AI review responses (timestamped).
+- `data/backups/` — Auto and manual backups of the data file (gitignored).
 - `portfolio_snapshots` array in JSON — Point-in-time portfolio value records (auto mid-month + on-demand).
 
 ### Portfolio Snapshot Flow
@@ -70,6 +71,7 @@ Three-persona mode uses Cathie Wood, Peter Lynch, and Ray Dalio personas with sy
 - **Currency:** All amounts in KRW. `format_currency()` for display. RSU values converted via `convert_usd_to_krw()`.
 - **Settlement:** 2-day rebalancing cycle. Day 1: sell before 15:00 KST, broker confirms price ~17:00. Day 2 (next business day): cash deposited, execute buy orders, broker confirms buy price ~17:00. Weekends/Korean holidays skipped via `holidays` library. If sell placed after 15:00, effective trade date shifts to next business day (`next_kr_business_day()`).
 - **Rebalancing:** Drift threshold >5% triggers alerts with specific share counts (floor for sell, ceil for buy). Workflow tracker gates BUY step until cash deposit date (sell date + T+1 business day) has passed. Stores `sell_time`, `effective_sell_date`, and `settlement_date` per cycle. On "Complete Rebalancing", confirmed sell/buy transactions auto-update `data['shares']` for ETFs (subtract sold, add bought). Cash is excluded — managed separately via Track Deposits. A `shares_applied` flag prevents double-application.
+- **Backup:** Every `save_data()` call auto-creates a timestamped backup in `data/backups/` (last 10 kept). Manual backups with custom labels via sidebar. Restore validates JSON and creates a safety `pre_restore` backup before overwriting.
 - **Encoding:** Subprocess calls to Claude CLI must use `encoding="utf-8"` (Korean text on Windows).
 - **Claude CLI detection:** `_find_claude_exe()` checks `shutil.which` then known install paths (`~/.local/bin/`, `AppData/Roaming/npm/`) since Streamlit may not inherit the full user PATH.
 
