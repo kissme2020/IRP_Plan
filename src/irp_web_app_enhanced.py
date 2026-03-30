@@ -58,6 +58,18 @@ IRP_CONFIG = {
     'rsu_after_tax_pct': 0.70,
 }
 
+# Estimated ETF prices — single source for fallback and default share calculations
+ESTIMATED_ETF_PRICES = {
+    'AI Core Power': 15000,
+    'AI Tech TOP10': 12000,
+    'Dividend Stocks': 11000,
+    'Consumer Staples': 10500,
+    'Treasury Bonds': 9500,
+    'Gold': 14000,
+    'Japan TOPIX': 16000,
+    'Cash': 1,
+}
+
 # Target allocation (Option B - Moderate) — DEFAULT values
 # At runtime, use get_allocation_target() which checks irp_tracker_data.json first
 ALLOCATION_TARGET_DEFAULT = {
@@ -163,16 +175,10 @@ def fetch_etf_prices():
     return prices
 
 def get_fallback_prices():
-    """Fallback prices if API fails (approximate values)"""
+    """Fallback prices if API fails — uses shared ESTIMATED_ETF_PRICES."""
     return {
-        'AI Core Power': {'price': 15000, 'date': '', 'status': 'fallback'},
-        'AI Tech TOP10': {'price': 12000, 'date': '', 'status': 'fallback'},
-        'Dividend Stocks': {'price': 11000, 'date': '', 'status': 'fallback'},
-        'Consumer Staples': {'price': 10500, 'date': '', 'status': 'fallback'},
-        'Treasury Bonds': {'price': 9500, 'date': '', 'status': 'fallback'},
-        'Gold': {'price': 14000, 'date': '', 'status': 'fallback'},
-        'Japan TOPIX': {'price': 16000, 'date': '', 'status': 'fallback'},
-        'Cash': {'price': 1, 'date': '', 'status': 'success'},
+        asset: {'price': price, 'date': '', 'status': 'success' if asset == 'Cash' else 'fallback'}
+        for asset, price in ESTIMATED_ETF_PRICES.items()
     }
 
 def calculate_holdings_value(shares, prices):
@@ -451,13 +457,13 @@ def load_data():
     if os.path.exists(data_file):
         with open(data_file, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            # Ensure holdings structure exists (for backward compatibility)
-            if 'holdings' not in data:
-                data['holdings'] = get_default_holdings()
-            if 'holdings_values' not in data:
-                data['holdings_values'] = get_default_holdings_values()
-            if 'holdings_updated' not in data:
-                data['holdings_updated'] = None
+            # Migrate: remove zombie fields (Phase 6.1)
+            data.pop('holdings', None)
+            data.pop('holdings_values', None)
+            data.pop('holdings_updated', None)
+            # Ensure shares exists as the single source of truth
+            if 'shares' not in data:
+                data['shares'] = get_default_holdings()
             if 'rebalance_history' not in data:
                 data['rebalance_history'] = []
             # New fields for transaction tracking and rebalancing settings
@@ -479,9 +485,7 @@ def load_data():
             'monthly_entries': [],
             'rsu_vesting': [],
             'rebalancing_history': [],
-            'holdings': get_default_holdings(),
-            'holdings_values': get_default_holdings_values(),
-            'holdings_updated': None,
+            'shares': get_default_holdings(),
             'rebalance_history': [],
             'transactions': [],
             'rebalancing_settings': {
@@ -493,78 +497,36 @@ def load_data():
         }
 
 def get_default_holdings():
-    """Get default holdings in SHARES (not values) based on initial balance and target allocation"""
+    """Get default holdings in SHARES based on initial balance, target allocation, and ESTIMATED_ETF_PRICES."""
     initial = IRP_CONFIG['initial_balance']
-    
-    # Estimated prices for initial calculation (will be updated with real prices)
-    estimated_prices = {
-        'AI Core Power': 15000,
-        'AI Tech TOP10': 12000,
-        'Dividend Stocks': 11000,
-        'Consumer Staples': 10500,
-        'Treasury Bonds': 9500,
-        'Gold': 14000,
-        'Japan TOPIX': 16000,
-        'Cash': 1,  # Cash is 1:1
-    }
-    
     holdings = {}
     for asset, target_pct in ALLOCATION_TARGET.items():
         target_value = initial * target_pct
-        est_price = estimated_prices.get(asset, 10000)
-        # Calculate number of shares (round to nearest 10 for convenience)
+        est_price = ESTIMATED_ETF_PRICES.get(asset, 10000)
         shares = int(target_value / est_price / 10) * 10
         holdings[asset] = shares
-    
     return holdings
 
-def get_default_holdings_values():
-    """Get default holdings as VALUES (for backward compatibility)"""
-    initial = IRP_CONFIG['initial_balance']
-    return {
-        'AI Core Power': int(initial * 0.28),
-        'AI Tech TOP10': int(initial * 0.14),
-        'Dividend Stocks': int(initial * 0.10),
-        'Consumer Staples': int(initial * 0.08),
-        'Treasury Bonds': int(initial * 0.11),
-        'Gold': int(initial * 0.07),
-        'Japan TOPIX': int(initial * 0.02),
-        'Cash': int(initial * 0.20),  # Start with some cash buffer
-    }
-
-def save_holdings(holdings):
-    """Save updated holdings (shares mode - calculated values)"""
-    data = load_data()
-    data['holdings'] = holdings
-    data['holdings_updated'] = datetime.now().isoformat()
-    save_data(data)
-    return True
-
-def save_holdings_values(holdings_values):
-    """Save updated holdings values (values mode - direct KRW entry)"""
-    data = load_data()
-    data['holdings_values'] = holdings_values
-    data['holdings_updated'] = datetime.now().isoformat()
-    save_data(data)
-    return True
-
 def record_rebalance(trades_executed, notes=""):
-    """Record a rebalancing action"""
+    """Record a rebalancing action."""
     data = load_data()
+    shares = data.get('shares', get_default_holdings())
+    prices = fetch_etf_prices()
+    portfolio_value = 0
+    for asset, count in shares.items():
+        if asset == 'Cash':
+            portfolio_value += count
+        else:
+            portfolio_value += count * prices.get(asset, {}).get('price', 0)
     rebalance_record = {
         'date': datetime.now().isoformat(),
         'trades': trades_executed,
         'notes': notes,
-        'portfolio_value_before': sum(data['holdings'].values()),
+        'portfolio_value_before': portfolio_value,
     }
     data['rebalance_history'].append(rebalance_record)
     save_data(data)
     return True
-
-def get_holdings():
-    """Get current holdings"""
-    data = load_data()
-    return data.get('holdings', get_default_holdings())
 
 def save_data(data):
     """Save data to JSON file with automatic backup."""
@@ -1038,19 +1000,33 @@ def calculate_total_deposits(data):
             rsu_total += shares * price * exchange_rate * after_tax_pct
     return monthly_total, rsu_total, monthly_total + rsu_total
 
+def calculate_portfolio_value(data) -> tuple[int, dict[str, int]]:
+    """Calculate portfolio value from shares × live prices (single source of truth).
+
+    Returns (total_value, holdings_dict) where holdings_dict maps asset→KRW value.
+    """
+    shares = data.get('shares', get_default_holdings())
+    prices = fetch_etf_prices()
+    holdings = {}
+    for asset in ALLOCATION_TARGET:
+        count = shares.get(asset, 0)
+        if asset == 'Cash':
+            holdings[asset] = count
+        else:
+            holdings[asset] = count * prices.get(asset, {}).get('price', 0)
+    return sum(holdings.values()), holdings
+
 def calculate_current_balance(data):
-    """Calculate current portfolio balance"""
-    balance = IRP_CONFIG['initial_balance']
-    monthly, rsu, total = calculate_total_deposits(data)
-    balance += total
-    return balance
+    """Calculate current portfolio balance from holdings × live prices."""
+    total, _ = calculate_portfolio_value(data)
+    return total
 
 def calculate_progress(data):
-    """Calculate progress metrics"""
+    """Calculate progress metrics using holdings-based portfolio value."""
     current = calculate_current_balance(data)
     progress_goal = (current / IRP_CONFIG['target_goal']) * 100
     progress_floor = (current / IRP_CONFIG['minimum_floor']) * 100
-    
+
     return {
         'current': current,
         'target_goal': IRP_CONFIG['target_goal'],
@@ -2549,54 +2525,6 @@ def page_rebalancing_alerts():
                     save_data(data)
                     st.rerun()
         
-        # ═══════════════════════════════════════════════════════════════════════
-        # SECTION 4: RECORD REBALANCING
-        # ═══════════════════════════════════════════════════════════════════════
-        st.divider()
-        st.header("✅ Section 4: Record Your Rebalancing")
-        
-        st.write("After executing the trades, update your holdings to reflect the new values:")
-        
-        with st.expander("📝 I've completed the rebalancing - Update my holdings", expanded=False):
-            st.write("Enter the new values after rebalancing:")
-            
-            new_holdings = {}
-            cols = st.columns(2)
-            
-            for idx, (asset, current_value) in enumerate(holdings.items()):
-                # Calculate suggested new value (target)
-                target_pct = ALLOCATION_TARGET.get(asset, 0)
-                suggested_value = int(portfolio_value * target_pct)
-                
-                with cols[idx % 2]:
-                    new_holdings[asset] = st.number_input(
-                        f"{asset} (Suggested: {suggested_value:,})",
-                        value=suggested_value,
-                        step=100_000,
-                        min_value=0,
-                        key=f"new_holding_{asset}"
-                    )
-            
-            notes = st.text_input("Notes (optional)", placeholder="e.g., Quarterly rebalancing March 2026")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("💾 Save New Holdings & Record Rebalance", width="stretch", type="primary"):
-                    # Record the trades
-                    all_trades = []
-                    for t in trades_sell:
-                        all_trades.append({'action': 'SELL', 'asset': t['Asset'], 'amount': t['_amount']})
-                    for t in trades_buy:
-                        all_trades.append({'action': 'BUY', 'asset': t['Asset'], 'amount': t['_amount']})
-                    
-                    record_rebalance(all_trades, notes)
-                    save_holdings(new_holdings)
-                    st.success("✅ Holdings updated and rebalancing recorded!")
-                    st.rerun()
-            
-            with col2:
-                new_total = sum(new_holdings.values())
-                st.metric("New Total", f"{new_total:,.0f} KRW")
     else:
         st.success("✅ Portfolio is well-balanced! No trades needed at this time.")
     
@@ -3463,20 +3391,7 @@ def page_original_dashboard():
     # ── Portfolio Allocation (current) ───────────────────────────────────────
     st.subheader("🥧 Current Allocation vs Target")
 
-    # Get current holdings values
-    shares = data.get('shares', get_default_holdings())
-    prices = fetch_etf_prices()
-
-    holdings = {}
-    for asset in ALLOCATION_TARGET.keys():
-        num_shares = shares.get(asset, 0)
-        price = prices.get(asset, {}).get('price', 0)
-        if asset == 'Cash':
-            holdings[asset] = num_shares
-        else:
-            holdings[asset] = num_shares * price
-
-    portfolio_value = sum(holdings.values())
+    portfolio_value, holdings = calculate_portfolio_value(data)
 
     if portfolio_value > 0:
         col_pie1, col_pie2 = st.columns(2)
@@ -3526,7 +3441,7 @@ def page_original_dashboard():
     # ── Projected Growth ─────────────────────────────────────────────────────
     st.subheader("📈 Projected Growth to Retirement")
 
-    current_balance = progress['current'] if portfolio_value == 0 else portfolio_value
+    current_balance = progress['current']
     monthly_contrib = IRP_CONFIG['base_monthly']
     target_cagr = IRP_CONFIG['target_cagr']
     months_left = int(years_remaining * 12)
@@ -3704,9 +3619,10 @@ def page_original_dashboard():
             )
             st.rerun()
 
-    # Portfolio History chart
+    # Portfolio History charts
     if snapshots:
         _render_portfolio_history_chart(snapshots)
+        _render_per_asset_history_chart(snapshots)
 
         # Snapshot history table
         with st.expander(f"📋 Snapshot History ({len(snapshots)} records)", expanded=False):
@@ -3785,6 +3701,50 @@ def _render_portfolio_history_chart(snapshots: list[dict]):
         xaxis_title='Date', yaxis_title='Portfolio Value (KRW)',
         height=420,
         legend=dict(orientation='h', yanchor='bottom', y=1.02),
+        yaxis=dict(tickformat=',.0f'),
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def _render_per_asset_history_chart(snapshots: list[dict]):
+    """Render a stacked area chart showing each asset's value over time."""
+    if len(snapshots) < 2:
+        st.info("Per-asset history requires at least 2 snapshots.")
+        return
+
+    dates = [s['date'][:10] for s in snapshots]
+    # Collect all asset names from the first snapshot that has values
+    assets = list(ALLOCATION_TARGET.keys())
+
+    # Assign distinct colors per asset
+    colors = {
+        'AI Core Power': '#1976D2',
+        'AI Tech TOP10': '#7B1FA2',
+        'Dividend Stocks': '#388E3C',
+        'Consumer Staples': '#F57C00',
+        'Treasury Bonds': '#0097A7',
+        'Gold': '#FBC02D',
+        'Japan TOPIX': '#D32F2F',
+        'Cash': '#78909C',
+    }
+
+    fig = go.Figure()
+    for asset in assets:
+        values = [s.get('values', {}).get(asset, 0) for s in snapshots]
+        fig.add_trace(go.Scatter(
+            x=dates, y=values,
+            mode='lines',
+            name=asset,
+            line=dict(color=colors.get(asset, '#999999'), width=0.5),
+            stackgroup='one',
+            hovertemplate=f'{asset}<br>%{{x}}<br>₩%{{y:,.0f}}<extra></extra>',
+        ))
+
+    fig.update_layout(
+        title='Per-Asset Value Over Time',
+        xaxis_title='Date', yaxis_title='Asset Value (KRW)',
+        height=420,
+        legend=dict(orientation='h', yanchor='bottom', y=1.02, font=dict(size=10)),
         yaxis=dict(tickformat=',.0f'),
     )
     st.plotly_chart(fig, use_container_width=True)
@@ -4815,10 +4775,7 @@ def page_reports():
     # ── Allocation Report ────────────────────────────────────────────────────
     st.subheader("🎯 Current Allocation vs Target")
 
-    holdings = data.get('holdings_values', data.get('holdings', {}))
-    if not holdings or all(v == 0 for v in holdings.values()):
-        holdings = get_default_holdings_values()
-    total_portfolio = sum(holdings.values()) if holdings else 0
+    total_portfolio, holdings = calculate_portfolio_value(data)
     target_alloc = ALLOCATION_TARGET
 
     if total_portfolio > 0:

@@ -28,10 +28,10 @@ streamlit run src/irp_web_app_enhanced.py --server.port 8502
 
 | Page | What It Does |
 |------|-------------|
-| **Dashboard** | Portfolio balance, progress toward 400M KRW goal, growth chart, latest AI review summary, portfolio snapshots (on-demand + auto mid-month), portfolio history chart |
+| **Dashboard** | Portfolio balance (shares × live prices), progress toward 400M KRW goal, growth chart, latest AI review summary, portfolio snapshots (on-demand + auto mid-month), portfolio history chart, per-asset value history chart |
 | **Track Deposits** | Record monthly 600K deposits and quarterly bonuses |
 | **Market Dashboard** | Live market data (S&P 500, NASDAQ, KOSPI, VIX, USD/KRW, Gold, Oil, etc.) |
-| **Rebalancing Alerts** | Drift detection (>5%), buy/sell share counts, T+2 settlement |
+| **Rebalancing Alerts** | Drift detection (>5%), buy/sell share counts, T+1 settlement |
 | **Plan Revision** | Compare Conservative / Moderate / Aggressive strategies |
 | **Projections** | Year-by-year forecasts (CAGR pre-filled from AI review), scenario analysis to 2030 |
 | **Reports** | Contributions summary, allocation pie chart, alerts, AI review history |
@@ -79,7 +79,7 @@ streamlit run src/irp_web_app_enhanced.py --server.port 8502
 
 1. **Rebalancing Alerts** → review drift and share recommendations
 2. Execute **sells first** (priority: HIGH drift items)
-3. Wait for **T+2 settlement** (Korea business days, excludes holidays)
+3. Wait for **T+1 settlement** (Korea business days, excludes holidays)
 4. On settlement day, recalculate buy-side shares at current prices
 5. Execute **buys**
 6. Update the workflow tracker state as you progress
@@ -121,7 +121,7 @@ Allocation targets are editable via AI Review import or manual reset.
 |------|---------|
 | `src/irp_web_app_enhanced.py` | Main Streamlit app (all pages) |
 | `src/market_data.py` | Market data fetching (yfinance, cache, fallback) |
-| `src/data_handler.py` | JSON data load/save, deposits, RSU |
+| `src/data_handler.py` | Legacy JSON data helpers (deposits, RSU) |
 | `src/utils.py` | Helpers: share conversion, settlement dates, AI snapshot |
 | `data/etf_config.json` | ETF ticker codes and metadata |
 | `data/irp_tracker_data.json` | All your portfolio data (auto-created) |
@@ -202,4 +202,4 @@ pip install -r requirements.txt
 
 ---
 
-*Last Updated: March 14, 2026*
+*Last Updated: March 30, 2026*

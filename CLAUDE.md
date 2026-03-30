@@ -55,7 +55,7 @@ python -m py_compile src/data_handler.py
 - **Auto:** Triggers on first Korean business day on or after the 15th each month (post-rebalancing). Skips weekends and Korean holidays. Uses `is_kr_business_day()` and `should_auto_snapshot()`.
 - **Manual:** On-demand button on Dashboard with optional note.
 - **Data captured:** shares, ETF prices, per-asset values, total value, allocation %, targets, trigger type, note.
-- **Displayed:** Portfolio History line chart on Dashboard with goal/floor lines, auto vs manual markers.
+- **Displayed:** Portfolio History line chart on Dashboard with goal/floor lines, auto vs manual markers. Per-asset stacked area chart shows individual asset values over time.
 
 ### AI Review Flow
 
@@ -70,6 +70,7 @@ Three-persona mode uses Cathie Wood, Peter Lynch, and Ray Dalio personas with sy
 
 - **Currency:** All amounts in KRW. `format_currency()` for display. RSU values converted via `convert_usd_to_krw()`.
 - **Settlement:** 2-day rebalancing cycle. Day 1: sell before 15:00 KST, broker confirms price ~17:00. Day 2 (next business day): cash deposited, execute buy orders, broker confirms buy price ~17:00. Weekends/Korean holidays skipped via `holidays` library. If sell placed after 15:00, effective trade date shifts to next business day (`next_kr_business_day()`).
+- **Portfolio Value:** Single source of truth: `calculate_portfolio_value(data)` returns `(total, holdings_dict)` from `data['shares']` × live ETF prices. Used by Dashboard, Reports, Projections, Plan Revision. Fallback prices defined in `ESTIMATED_ETF_PRICES` constant (shared by `get_fallback_prices()` and `get_default_holdings()`). The old `data['holdings']` and `data['holdings_values']` fields are removed on load.
 - **Rebalancing:** Drift threshold >5% triggers alerts with specific share counts (floor for sell, ceil for buy). Workflow tracker gates BUY step until cash deposit date (sell date + T+1 business day) has passed. Stores `sell_time`, `effective_sell_date`, and `settlement_date` per cycle. On "Complete Rebalancing", confirmed sell/buy transactions auto-update `data['shares']` for ETFs (subtract sold, add bought). Cash is excluded — managed separately via Track Deposits. A `shares_applied` flag prevents double-application.
 - **Backup:** Every `save_data()` call auto-creates a timestamped backup in `data/backups/` (last 10 kept). Manual backups with custom labels via sidebar. Restore validates JSON and creates a safety `pre_restore` backup before overwriting.
 - **Encoding:** Subprocess calls to Claude CLI must use `encoding="utf-8"` (Korean text on Windows).
@@ -97,7 +98,7 @@ Three-persona mode uses Cathie Wood, Peter Lynch, and Ray Dalio personas with sy
 
 ## Common Pitfalls (Do NOT)
 
-- **Do NOT** modify `data/irp_tracker_data.json` structure without updating `data_handler.py` load/save logic and adding migration handling for existing data files.
+- **Do NOT** modify `data/irp_tracker_data.json` structure without updating `load_data()`/`save_data()` logic and adding migration handling for existing data files.
 - **Do NOT** remove the fallback chain in `market_data.py` (live → cache → mock). The app must work offline.
 - **Do NOT** use `subprocess.run()` without `encoding="utf-8"` — Korean characters will break on Windows.
 - **Do NOT** add new Streamlit pages as separate files. All pages are `page_*()` functions in the main app file.

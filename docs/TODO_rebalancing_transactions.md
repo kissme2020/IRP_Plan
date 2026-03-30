@@ -134,13 +134,14 @@ Day 3 (Wed) — BUY
 - [x] **5.2** Restore from backup — validates JSON, creates safety `pre_restore` backup first
 - [x] **5.3** `.gitignore` updated to exclude `data/backups/`
 
-### Phase 6: Structural Cleanup (Future)
-- [ ] **6.1** Remove zombie fields: `data['holdings']`, `data['holdings_values']` — make `data['shares']` the single source of truth for portfolio quantities
-- [ ] **6.2** Remove dead functions: `save_holdings()`, `save_holdings_values()`, `get_holdings()`, `get_default_holdings_values()`
-- [ ] **6.3** Remove Section 4 (manual holdings form) — redundant now that "Complete Rebalancing" auto-updates shares
-- [ ] **6.4** Fix `record_rebalance()` — compute portfolio value from `shares × prices` instead of stale `data['holdings']`
-- [ ] **6.5** Consolidate fallback prices — `get_fallback_prices()` and `get_default_holdings()` estimated prices should use same values
-- [ ] **6.6** Evaluate removing or consolidating `src/data_handler.py` (largely superseded by inline `load_data()`/`save_data()`)
+### Phase 6: Data Consolidation & Structural Cleanup ✅
+- [x] **6.1** Remove zombie fields: `data['holdings']`, `data['holdings_values']` — `load_data()` now pops these and ensures `data['shares']` exists
+- [x] **6.2** Remove dead functions: `save_holdings()`, `save_holdings_values()`, `get_holdings()`, `get_default_holdings_values()`
+- [x] **6.3** Remove Section 4 (manual holdings form) — redundant now that "Complete Rebalancing" auto-updates shares
+- [x] **6.4** Fix `record_rebalance()` — compute portfolio value from `shares × prices` instead of stale `data['holdings']`
+- [x] **6.5** Consolidate fallback prices — shared `ESTIMATED_ETF_PRICES` constant used by both `get_fallback_prices()` and `get_default_holdings()`
+- [x] **6.6** Fix balance calculation across all pages — new `calculate_portfolio_value()` function, `calculate_current_balance()` and `calculate_progress()` now use shares × live prices. Dashboard, Reports, Projections, Plan Revision all consistent.
+- [x] **6.7** Add per-asset value history chart — stacked area chart `_render_per_asset_history_chart()` on Dashboard from `portfolio_snapshots`
 
 ### Phase 7: Edge Cases & Polish (Future)
 - [ ] **7.1** Handle partial confirmation — individual row save buttons alongside "Confirm All"
