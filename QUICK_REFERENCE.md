@@ -31,7 +31,7 @@ streamlit run src/irp_web_app_enhanced.py --server.port 8502
 | **Dashboard** | Portfolio balance (shares × live prices), progress toward 400M KRW goal, growth chart, latest AI review summary, portfolio snapshots (on-demand + auto mid-month), portfolio history chart, per-asset value history chart |
 | **Track Deposits** | Record monthly 600K deposits and quarterly bonuses |
 | **Market Dashboard** | Live market data (S&P 500, NASDAQ, KOSPI, VIX, USD/KRW, Gold, Oil, etc.) |
-| **Rebalancing Alerts** | Drift detection (>5%), buy/sell share counts, T+1 settlement |
+| **Rebalancing Alerts** | Drift detection (>5%), buy/sell share counts, date-picker workflow (5 biz day window) |
 | **Plan Revision** | Compare Conservative / Moderate / Aggressive strategies |
 | **Projections** | Year-by-year forecasts (CAGR pre-filled from AI review), scenario analysis to 2030 |
 | **Reports** | Contributions summary, allocation pie chart, alerts, AI review history |
@@ -78,13 +78,15 @@ streamlit run src/irp_web_app_enhanced.py --server.port 8502
 ### Rebalancing Execution (When Alerts Fire)
 
 1. **Rebalancing Alerts** → review drift and share recommendations
-2. Execute **sells first** (priority: HIGH drift items)
-3. Wait for **T+1 settlement** (Korea business days, excludes holidays)
-4. On settlement day, recalculate buy-side shares at current prices
-5. Execute **buys**
-6. Update the workflow tracker state as you progress
+2. Select **sell execution date** (date picker, within last 5 business days) → click "I've executed the SELL orders"
+3. Enter broker-confirmed sell prices (validated against sell-date market prices)
+4. Select **buy execution date** (date picker, within last 5 business days) → click "I've executed the BUY orders"
+5. Enter broker-confirmed buy prices/shares (validated against buy-date market prices)
+6. Click **"Complete Rebalancing"** to auto-update ETF holdings
 
-> Workflow states: `Not Started` → `Sells Executed` → `Awaiting Settlement` → `Buys Executed` → `Completed`
+> Workflow states: `Not Started` → `Sells Executed` → `Sells Confirmed` → `Buys Executed` → `Buys Confirmed` → `Completed`
+>
+> **5 business day limit:** Workflow shows expiry warning if not completed within 5 Korean business days. Reset if needed.
 
 ---
 

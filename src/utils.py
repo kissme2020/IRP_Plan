@@ -177,6 +177,17 @@ def next_kr_business_day(from_date: date) -> date:
     return d
 
 
+def n_kr_business_days_back(from_date: date, n: int) -> date:
+    """Return the date N Korean business days before from_date."""
+    d = from_date
+    count = 0
+    while count < n:
+        d -= timedelta(days=1)
+        if d.weekday() < 5 and d not in KR_HOLIDAYS:
+            count += 1
+    return d
+
+
 def format_date(date_str: str, format_out: str = "%Y년 %m월 %d일") -> str:
     """Format date string to Korean format"""
     try:

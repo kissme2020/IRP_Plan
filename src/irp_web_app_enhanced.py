@@ -24,7 +24,8 @@ import glob as glob_module
 from functools import lru_cache
 from utils import (
     krw_to_shares, generate_portfolio_snapshot, parse_ai_review_md,
-    get_settlement_date, next_kr_business_day, KR_TZ,
+    get_settlement_date, next_kr_business_day, n_kr_business_days_back,
+    KR_TZ, KR_HOLIDAYS, is_kr_business_day,
     generate_persona_export, parse_persona_review_md,
     detect_review_format, persona_review_to_standard, normalize_asset_name,
     is_claude_cli_available, run_claude_cli, save_review_md,
@@ -173,6 +174,45 @@ def fetch_etf_prices():
             prices[asset_name] = fallback.get(asset_name, {'price': 10000, 'date': '', 'status': 'fallback'})
     
     return prices
+
+def fetch_etf_price_on_date(target_date: date) -> dict:
+    """Fetch ETF closing prices for a specific date from KRX using pykrx.
+
+    Tries the target date, then up to 3 days back to find the nearest trading day.
+    Returns dict matching fetch_etf_prices() format: {asset: {price, date, status}}.
+    """
+    prices = {}
+    try:
+        from pykrx import stock
+        for days_back in range(4):
+            check = target_date - timedelta(days=days_back)
+            check_str = check.strftime("%Y%m%d")
+            for asset_name, config in ETF_CONFIG.items():
+                if config['code'] is None or asset_name in prices:
+                    continue
+                try:
+                    df = stock.get_market_ohlcv(check_str, check_str, config['code'])
+                    if not df.empty:
+                        prices[asset_name] = {
+                            'price': int(df.iloc[-1]['종가']),
+                            'date': check_str,
+                            'status': 'success',
+                        }
+                except Exception:
+                    pass
+            if len(prices) >= len([c for c in ETF_CONFIG.values() if c['code']]) - 1:
+                break
+        prices['Cash'] = {'price': 1, 'date': target_date.strftime("%Y%m%d"), 'status': 'success'}
+    except ImportError:
+        return get_fallback_prices()
+    except Exception:
+        return get_fallback_prices()
+    for asset_name in ETF_CONFIG:
+        if asset_name not in prices:
+            fallback = get_fallback_prices()
+            prices[asset_name] = fallback.get(asset_name, {'price': 10000, 'date': '', 'status': 'fallback'})
+    return prices
+
 
 def get_fallback_prices():
     """Fallback prices if API fails — uses shared ESTIMATED_ETF_PRICES."""
@@ -1964,22 +2004,51 @@ def page_rebalancing_alerts():
         step_idx = status_steps.index(wf_status) if wf_status in status_steps else 0
         st.progress(step_idx / (len(status_steps) - 1), text=f"Step {step_idx}/{len(status_steps)-1}: {step_labels[step_idx]}")
         
+        # Check workflow expiry (5 business days)
+        wf_expired = False
+        if wf_status not in ('not_started', 'completed'):
+            started_str = workflow.get('workflow_started', workflow.get('sell_date', ''))
+            if started_str:
+                started_dt = datetime.fromisoformat(started_str).date() if 'T' in started_str else date.fromisoformat(started_str[:10])
+                today_kr_check = datetime.now(KR_TZ).date()
+                expiry_date = started_dt
+                biz_count = 0
+                while biz_count < 5:
+                    expiry_date += timedelta(days=1)
+                    if expiry_date.weekday() < 5 and expiry_date not in KR_HOLIDAYS:
+                        biz_count += 1
+                if today_kr_check > expiry_date:
+                    wf_expired = True
+                    days_over = (today_kr_check - expiry_date).days
+                    st.warning(
+                        f"⚠️ **리밸런싱 기한 초과** — This workflow started on {started_dt} and has exceeded "
+                        f"the 5 business day window (expired {days_over} day(s) ago on {expiry_date}). "
+                        f"Please complete or reset the workflow."
+                    )
+
         # Show current state and actions
         wf_col1, wf_col2 = st.columns(2)
-        
+
         with wf_col1:
             if wf_status == 'not_started':
                 st.write("🔵 **Status**: Ready to start rebalancing")
+                today_kr = datetime.now(KR_TZ).date()
+                earliest_sell = n_kr_business_days_back(today_kr, 5)
+                sell_exec_date = st.date_input(
+                    "📅 매도 체결일 (Sell execution date)",
+                    value=today_kr,
+                    min_value=earliest_sell,
+                    max_value=today_kr,
+                    key="wf_sell_date_input",
+                    help="Select the actual date your sell orders were executed (within last 5 business days)"
+                )
+                if not is_kr_business_day(sell_exec_date):
+                    st.warning("⚠️ Selected date is not a Korean business day (weekend or holiday).")
                 if st.button("📉 I've executed the SELL orders", key="wf_sell_done", type="primary"):
                     sell_now = datetime.now(KR_TZ)
                     batch_id = generate_batch_id("RB")
-                    today_str = sell_now.strftime("%Y-%m-%d")
-                    # Determine effective trade date: if after 15:00, sell executes next business day
-                    if sell_now.hour >= 15:
-                        effective_sell_date = next_kr_business_day(sell_now.date())
-                    else:
-                        effective_sell_date = sell_now.date()
-                    sell_settlement = get_settlement_date(effective_sell_date)
+                    sell_date_str = sell_exec_date.isoformat()
+                    sell_settlement = get_settlement_date(sell_exec_date)
                     sell_tx_ids = []
                     for t in trades_sell:
                         asset_name = t['_asset_name']
@@ -1989,7 +2058,7 @@ def page_rebalancing_alerts():
                         tx = add_transaction(
                             asset=asset_name,
                             trans_type='sell',
-                            date_str=today_str,
+                            date_str=sell_date_str,
                             shares=shares,
                             price_per_share=0,
                             notes="Rebalancing sell (pending confirmation)",
@@ -2002,7 +2071,7 @@ def page_rebalancing_alerts():
                         'status': 'sells_executed',
                         'sell_date': sell_now.isoformat(),
                         'sell_time': sell_now.strftime('%H:%M'),
-                        'effective_sell_date': effective_sell_date.isoformat(),
+                        'effective_sell_date': sell_exec_date.isoformat(),
                         'settlement_date': sell_settlement['settlement_date'].isoformat(),
                         'sells_total': total_sell,
                         'sell_batch_id': batch_id,
@@ -2010,10 +2079,9 @@ def page_rebalancing_alerts():
                         'planned_buys': [{'asset': t['_asset_name'], 'amount': t['_amount'],
                                           'shares': t['_shares']} for t in trades_buy
                                          if t['_asset_name'] != 'Cash' and t['_shares'] > 0],
+                        'workflow_started': sell_now.isoformat(),
                     }
                     save_data(data)
-                    if sell_now.hour >= 15:
-                        st.warning(f"⚠️ 15:00 이후 매도 주문 — 실제 체결일은 다음 영업일 ({effective_sell_date}) 입니다.")
                     st.rerun()
 
             elif wf_status == 'sells_executed':
@@ -2023,6 +2091,14 @@ def page_rebalancing_alerts():
                 if pending_sells:
                     st.write("⏳ **Status**: Sell orders placed — enter broker execution prices")
                     st.caption(f"Batch: `{sell_batch}`")
+                    # Use sell execution date for reference prices
+                    eff_sell_str = workflow.get('effective_sell_date', '')
+                    if eff_sell_str:
+                        sell_ref_date = date.fromisoformat(eff_sell_str)
+                        ref_prices = fetch_etf_price_on_date(sell_ref_date)
+                        st.caption(f"📊 Reference prices from sell date: {eff_sell_str}")
+                    else:
+                        ref_prices = prices
                     with st.form("confirm_sell_prices"):
                         st.write("📋 Enter the **actual sale price per share** from your broker report:")
                         # Header row
@@ -2034,14 +2110,14 @@ def page_rebalancing_alerts():
                         with hcol3:
                             st.markdown("**Price per Share**")
                         with hcol4:
-                            st.markdown("**Ref. Market Price**")
+                            st.markdown("**Ref. Price (sell date)**")
                         st.divider()
                         sell_inputs = {}
                         preview_data = []
                         for tx in pending_sells:
                             etf_code = ETF_CONFIG.get(tx['asset'], {}).get('code', '')
                             label = f"{tx['asset']} [{etf_code}]" if etf_code else tx['asset']
-                            market_price = prices.get(tx['asset'], {}).get('price', 0)
+                            market_price = ref_prices.get(tx['asset'], {}).get('price', 0)
                             rcol1, rcol2, rcol3, rcol4 = st.columns([3, 2, 2, 2])
                             with rcol1:
                                 st.write(label)
@@ -2185,48 +2261,62 @@ def page_rebalancing_alerts():
                 if effective_date != sell_date:
                     sell_label += f" (체결일: {effective_date})"
 
+                # Show settlement info but do NOT block buy entry
                 if days_left > 0:
-                    st.write("⏳ **Status**: Sells confirmed. Waiting for cash deposit (next business day)")
+                    st.write(f"⏳ **Status**: Sells confirmed. Expected cash deposit: **{target_settle}** ({days_left} day(s))")
                     st.write(f"Sold on: {sell_label}")
-                    st.write(f"Cash deposit + BUY: **{target_settle}** ({days_left} day(s) remaining)")
-                    st.warning("💡 Do NOT execute buy orders yet — cash has not been deposited.")
+                    st.info("💡 Cash deposit expected on settlement date. You may proceed if cash is already available.")
                 else:
                     st.write(f"✅ **Status**: Cash deposited! Ready to buy.")
                     st.write(f"Sold on: {sell_label} → Buy on: **{target_settle}**")
-                    st.success("💰 Cash is available. Execute BUY orders now — confirm prices after 17:00.")
-                    if st.button("📈 I've executed the BUY orders", key="wf_buy_done", type="primary"):
-                        buy_batch_id = generate_batch_id("RB")
-                        buy_today = datetime.now(KR_TZ).strftime("%Y-%m-%d")
-                        buy_tx_ids = []
-                        for planned in workflow.get('planned_buys', []):
-                            asset_name = planned['asset']
-                            planned_amount = planned.get('amount', 0)
-                            if asset_name == 'Cash' or planned_amount == 0:
-                                continue
-                            tx = add_transaction(
-                                asset=asset_name,
-                                trans_type='buy',
-                                date_str=buy_today,
-                                shares=0,
-                                price_per_share=0,
-                                notes=f"Rebalancing buy ₩{int(planned_amount):,} (pending confirmation)",
-                                batch_id=buy_batch_id,
-                                status='pending'
-                            )
-                            buy_tx_ids.append(tx['id'])
-                        # Store planned amounts and update workflow in one save
-                        data = load_data()
-                        amount_map = {p['asset']: int(p.get('amount', 0))
-                                      for p in workflow.get('planned_buys', [])}
-                        for t in data.get('transactions', []):
-                            if t['id'] in buy_tx_ids:
-                                t['planned_amount'] = amount_map.get(t['asset'], 0)
-                        data['rebalancing_workflow']['status'] = 'buys_executed'
-                        data['rebalancing_workflow']['buy_date'] = datetime.now().isoformat()
-                        data['rebalancing_workflow']['buy_batch_id'] = buy_batch_id
-                        data['rebalancing_workflow']['buy_tx_ids'] = buy_tx_ids
-                        save_data(data)
-                        st.rerun()
+
+                # Buy execution date picker (within 5 business days)
+                earliest_buy = n_kr_business_days_back(today_kr, 5)
+                buy_exec_date = st.date_input(
+                    "📅 매수 체결일 (Buy execution date)",
+                    value=today_kr,
+                    min_value=earliest_buy,
+                    max_value=today_kr,
+                    key="wf_buy_date_input",
+                    help="Select the actual date your buy orders were executed (within last 5 business days)"
+                )
+                if not is_kr_business_day(buy_exec_date):
+                    st.warning("⚠️ Selected date is not a Korean business day (weekend or holiday).")
+
+                if st.button("📈 I've executed the BUY orders", key="wf_buy_done", type="primary"):
+                    buy_batch_id = generate_batch_id("RB")
+                    buy_date_str = buy_exec_date.isoformat()
+                    buy_tx_ids = []
+                    for planned in workflow.get('planned_buys', []):
+                        asset_name = planned['asset']
+                        planned_amount = planned.get('amount', 0)
+                        if asset_name == 'Cash' or planned_amount == 0:
+                            continue
+                        tx = add_transaction(
+                            asset=asset_name,
+                            trans_type='buy',
+                            date_str=buy_date_str,
+                            shares=0,
+                            price_per_share=0,
+                            notes=f"Rebalancing buy ₩{int(planned_amount):,} (pending confirmation)",
+                            batch_id=buy_batch_id,
+                            status='pending'
+                        )
+                        buy_tx_ids.append(tx['id'])
+                    # Store planned amounts and update workflow in one save
+                    data = load_data()
+                    amount_map = {p['asset']: int(p.get('amount', 0))
+                                  for p in workflow.get('planned_buys', [])}
+                    for t in data.get('transactions', []):
+                        if t['id'] in buy_tx_ids:
+                            t['planned_amount'] = amount_map.get(t['asset'], 0)
+                    data['rebalancing_workflow']['status'] = 'buys_executed'
+                    data['rebalancing_workflow']['buy_date'] = datetime.now().isoformat()
+                    data['rebalancing_workflow']['effective_buy_date'] = buy_exec_date.isoformat()
+                    data['rebalancing_workflow']['buy_batch_id'] = buy_batch_id
+                    data['rebalancing_workflow']['buy_tx_ids'] = buy_tx_ids
+                    save_data(data)
+                    st.rerun()
 
             elif wf_status == 'buys_executed':
                 buy_batch = workflow.get('buy_batch_id', '')
@@ -2235,6 +2325,14 @@ def page_rebalancing_alerts():
                 if pending_buys:
                     st.write("⏳ **Status**: Buy orders placed — enter actual values from broker report (~17:00)")
                     st.caption(f"Batch: `{buy_batch}`")
+                    # Use buy execution date for reference prices
+                    eff_buy_str = workflow.get('effective_buy_date', '')
+                    if eff_buy_str:
+                        buy_ref_date = date.fromisoformat(eff_buy_str)
+                        buy_ref_prices = fetch_etf_price_on_date(buy_ref_date)
+                        st.caption(f"📊 Reference prices from buy date: {eff_buy_str}")
+                    else:
+                        buy_ref_prices = prices
                     with st.form("confirm_buy_prices"):
                         st.write("📋 Enter the **amount ordered**, **actual price per share**, and **shares bought** from your broker report:")
                         # Header row
@@ -2248,14 +2346,14 @@ def page_rebalancing_alerts():
                         with hcol4:
                             st.markdown("**Shares Bought**")
                         with hcol5:
-                            st.markdown("**Ref. Market Price**")
+                            st.markdown("**Ref. Price (buy date)**")
                         st.divider()
                         buy_inputs = {}
                         buy_preview = []
                         for tx in pending_buys:
                             etf_code = ETF_CONFIG.get(tx['asset'], {}).get('code', '')
                             label = f"{tx['asset']} [{etf_code}]" if etf_code else tx['asset']
-                            market_price = prices.get(tx['asset'], {}).get('price', 0)
+                            market_price = buy_ref_prices.get(tx['asset'], {}).get('price', 0)
                             planned_amt = tx.get('planned_amount', 0)
                             rcol1, rcol2, rcol3, rcol4, rcol5 = st.columns([3, 2, 2, 2, 2])
                             with rcol1:
@@ -2487,21 +2585,19 @@ def page_rebalancing_alerts():
         with wf_col2:
             if wf_status != 'not_started':
                 st.write("**Workflow Summary:**")
-                if workflow.get('sell_date'):
-                    sell_disp = workflow['sell_date'][:10]
-                    sell_time_disp = workflow.get('sell_time', '')
-                    eff_date_disp = workflow.get('effective_sell_date', sell_disp)
-                    time_str = f" {sell_time_disp}" if sell_time_disp else ""
-                    st.write(f"📉 Sells: {sell_disp}{time_str} KST")
-                    if eff_date_disp != sell_disp:
-                        st.caption(f"체결일: {eff_date_disp} (15:00 이후 매도)")
+                if workflow.get('effective_sell_date'):
+                    st.write(f"📉 Sell Date: {workflow['effective_sell_date']}")
+                elif workflow.get('sell_date'):
+                    st.write(f"📉 Sells: {workflow['sell_date'][:10]}")
                 if workflow.get('sell_batch_id'):
                     st.caption(f"Sell Batch: `{workflow['sell_batch_id']}`")
                 if workflow.get('sells_confirmed_at'):
                     st.write(f"✅ Sells Confirmed: {workflow['sells_confirmed_at'][:10]}")
                 if workflow.get('settlement_date'):
-                    st.write(f"💰 Cash Deposit: {workflow['settlement_date'][:10]}")
-                if workflow.get('buy_date'):
+                    st.write(f"💰 Expected Cash Deposit: {workflow['settlement_date'][:10]}")
+                if workflow.get('effective_buy_date'):
+                    st.write(f"📈 Buy Date: {workflow['effective_buy_date']}")
+                elif workflow.get('buy_date'):
                     st.write(f"📈 Buys: {workflow['buy_date'][:10]}")
                 if workflow.get('buy_batch_id'):
                     st.caption(f"Buy Batch: `{workflow['buy_batch_id']}`")
@@ -2509,6 +2605,8 @@ def page_rebalancing_alerts():
                     st.write(f"✅ Buys Confirmed: {workflow['buys_confirmed_at'][:10]}")
                 if workflow.get('sells_total'):
                     st.write(f"💵 Amount: ₩{workflow['sells_total']:,.0f}")
+                if wf_expired:
+                    st.error("⏰ Workflow expired (>5 business days)")
 
                 st.write("")
                 if st.button("🔄 Reset Workflow", key="wf_reset", help="Reset if you want to start over"):
