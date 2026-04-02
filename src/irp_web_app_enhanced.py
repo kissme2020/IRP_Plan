@@ -792,7 +792,7 @@ def add_transaction(asset, trans_type, date_str, shares, price_per_share, notes=
         'date': date_str,
         'shares': shares,
         'price_per_share': price_per_share,
-        'total_cost': shares * price_per_share,
+        'total_cost': price_per_share if trans_type in ('contribution', 'dividend') else shares * price_per_share,
         'notes': notes,
         'batch_id': batch_id,
         'status': status,  # 'pending' or 'completed'
@@ -1017,7 +1017,7 @@ def record_rebalance_date():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def calculate_total_deposits(data):
-    """Calculate total deposits"""
+    """Calculate total deposits including contributions and dividends from transactions."""
     monthly_total = sum(e['total_deposit'] for e in data['monthly_entries'])
     # RSU: calculate net KRW from share-based data
     rsu_settings = data.get('rsu_settings', {})
@@ -1038,7 +1038,27 @@ def calculate_total_deposits(data):
             if price is None:
                 price = e.get('grant_price_usd', 0)
             rsu_total += shares * price * exchange_rate * after_tax_pct
+
+    # Add contributions and dividends from transactions
+    for t in data.get('transactions', []):
+        if t.get('type') in ('contribution', 'dividend') and t.get('status', 'completed') == 'completed':
+            monthly_total += t.get('price_per_share', 0)
+
     return monthly_total, rsu_total, monthly_total + rsu_total
+
+
+def calculate_avg_monthly_dividends(data) -> int:
+    """Calculate average monthly dividend income from transaction history."""
+    dividends = [t for t in data.get('transactions', [])
+                 if t.get('type') == 'dividend' and t.get('status', 'completed') == 'completed']
+    if not dividends:
+        return 0
+    dates = sorted(t['date'] for t in dividends)
+    first = datetime.strptime(dates[0], "%Y-%m-%d")
+    last = datetime.strptime(dates[-1], "%Y-%m-%d")
+    span_months = max(1, (last.year - first.year) * 12 + (last.month - first.month) + 1)
+    total = sum(t.get('price_per_share', 0) for t in dividends)
+    return int(total / span_months)
 
 def calculate_portfolio_value(data) -> tuple[int, dict[str, int]]:
     """Calculate portfolio value from shares × live prices (single source of truth).
@@ -1084,13 +1104,17 @@ def calculate_time_remaining():
     months = (days % 365) / 30.44
     return years, months, days
 
-def project_balance_to_retirement(current_balance):
-    """Project balance with compound growth"""
+def project_balance_to_retirement(current_balance, monthly_inflow: int = 0):
+    """Project balance with compound growth and monthly inflows (contributions + dividends)."""
     years_remaining, _, _ = calculate_time_remaining()
     target_cagr = IRP_CONFIG['target_cagr']
-    
-    projected = current_balance * ((1 + target_cagr) ** years_remaining)
-    return projected
+    monthly_rate = target_cagr / 12
+    months = int(years_remaining * 12)
+
+    balance = current_balance
+    for _ in range(months):
+        balance = balance * (1 + monthly_rate) + monthly_inflow
+    return balance
 
 def get_success_probability(current_balance):
     """Determine success probability based on current balance"""
@@ -3540,7 +3564,8 @@ def page_original_dashboard():
     st.subheader("📈 Projected Growth to Retirement")
 
     current_balance = progress['current']
-    monthly_contrib = IRP_CONFIG['base_monthly']
+    avg_monthly_div = calculate_avg_monthly_dividends(data)
+    monthly_contrib = IRP_CONFIG['base_monthly'] + avg_monthly_div
     target_cagr = IRP_CONFIG['target_cagr']
     months_left = int(years_remaining * 12)
 
@@ -3550,6 +3575,9 @@ def page_original_dashboard():
         'Target (10.2%)': target_cagr * 100,
         'Optimistic (15%)': 15.0,
     }
+
+    if avg_monthly_div > 0:
+        st.caption(f"Monthly inflow includes ₩{IRP_CONFIG['base_monthly']:,.0f} contribution + ₩{avg_monthly_div:,.0f} avg dividend")
 
     projection_rows = []
     for month in range(0, months_left + 1, 3):  # quarterly points
@@ -3578,7 +3606,7 @@ def page_original_dashboard():
                        annotation_text='Floor: 300M')
 
     fig_proj.update_layout(
-        title='Portfolio Growth Scenarios (with 600K/month contributions)',
+        title=f'Portfolio Growth Scenarios (₩{monthly_contrib:,.0f}/month incl. dividends)',
         xaxis_title='Date', yaxis_title='Balance (KRW)',
         height=420, legend=dict(orientation='h', yanchor='bottom', y=1.02),
         yaxis=dict(tickformat=',.0f')
@@ -3615,7 +3643,8 @@ def page_original_dashboard():
 
     col_m1, col_m2, col_m3 = st.columns(3)
 
-    projected_at_retirement = project_balance_to_retirement(current_balance)
+    monthly_inflow = IRP_CONFIG['base_monthly'] + calculate_avg_monthly_dividends(data)
+    projected_at_retirement = project_balance_to_retirement(current_balance, monthly_inflow)
 
     with col_m1:
         st.metric("Projected at Retirement", f"{projected_at_retirement/1_000_000:.1f}M KRW")
@@ -3634,6 +3663,9 @@ def page_original_dashboard():
 
     with col_m3:
         st.metric("Monthly Contribution", f"₩{IRP_CONFIG['base_monthly']:,.0f}")
+        avg_div = calculate_avg_monthly_dividends(data)
+        if avg_div > 0:
+            st.metric("Avg Monthly Dividend", f"₩{avg_div:,.0f}")
         st.metric("Annual Bonus (Expected)", f"₩{IRP_CONFIG['expected_annual_bonus']:,.0f}")
         rsu_total_krw = IRP_CONFIG['rsu_value_usd'] * IRP_CONFIG['rsu_kwr_per_usd'] * IRP_CONFIG['rsu_after_tax_pct']
         st.metric("RSU Total (After Tax)", f"₩{rsu_total_krw:,.0f}")
@@ -4582,6 +4614,7 @@ def page_projections():
 
     # ── User Controls ────────────────────────────────────────────────────────
     st.subheader("⚙️ Projection Parameters")
+    avg_monthly_div = calculate_avg_monthly_dividends(data)
     col_p1, col_p2, col_p3, col_p4 = st.columns(4)
     with col_p1:
         monthly_contrib = st.number_input(
@@ -4590,6 +4623,8 @@ def page_projections():
             min_value=0, step=100_000, format="%d",
             key="proj_monthly"
         )
+        if avg_monthly_div > 0:
+            st.caption(f"+ ₩{avg_monthly_div:,.0f}/mo avg dividend")
     with col_p2:
         annual_bonus = st.number_input(
             "Annual Bonus (KRW)",
@@ -4646,8 +4681,10 @@ def page_projections():
             months_this_year = min(12, int((datetime(2030, 12, 31) - datetime(year, 1, 1)).days / 30.44))
             months_this_year = max(0, min(12, months_this_year))
 
-        # Monthly contributions
+        # Monthly contributions + dividends
+        monthly_total = monthly_contrib + avg_monthly_div
         contrib = monthly_contrib * months_this_year
+        div_income = avg_monthly_div * months_this_year
         # Annual bonus (added once per year, except partial first year)
         bonus = annual_bonus if year > today.year else int(annual_bonus * months_this_year / 12)
         # RSU vesting
@@ -4656,15 +4693,16 @@ def page_projections():
         monthly_rate = custom_rate / 12 / 100
         growth_start = balance
         for _ in range(months_this_year):
-            balance = balance * (1 + monthly_rate) + monthly_contrib
+            balance = balance * (1 + monthly_rate) + monthly_total
         # Add bonus & RSU at year end
         balance += bonus + rsu_amt
-        investment_return = balance - growth_start - contrib - bonus - rsu_amt
+        investment_return = balance - growth_start - contrib - div_income - bonus - rsu_amt
 
         rows.append({
             'Year': year,
             'Start Balance': growth_start,
             'Contributions': contrib,
+            'Dividends': div_income,
             'Bonus': bonus,
             'RSU (After-Tax)': rsu_amt,
             'Investment Return': investment_return,
@@ -4681,6 +4719,7 @@ def page_projections():
             'Year': int(r['Year']),
             'Start': f"₩{r['Start Balance']:,.0f}",
             'Contributions': f"₩{r['Contributions']:,.0f}",
+            'Dividends': f"₩{r['Dividends']:,.0f}" if r['Dividends'] > 0 else '—',
             'Bonus': f"₩{r['Bonus']:,.0f}",
             'RSU': f"₩{r['RSU (After-Tax)']:,.0f}" if r['RSU (After-Tax)'] > 0 else '—',
             'Return': f"₩{r['Investment Return']:,.0f}",
@@ -4727,7 +4766,7 @@ def page_projections():
                 month_date = today + timedelta(days=m * 30.44)
                 if rsu_include and month_date.month == 3:  # approximate RSU at March
                     rsu_this = rsu_by_year.get(month_date.year, 0) / 12
-                bal = bal * (1 + m_rate) + monthly_contrib + rsu_this
+                bal = bal * (1 + m_rate) + monthly_contrib + avg_monthly_div + rsu_this
             row[label] = bal
         projection_rows.append(row)
 
